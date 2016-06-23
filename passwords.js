@@ -1,17 +1,22 @@
 #!/usr/bin/env node
+'use strict';
 
-var words = ["about", "after", "again", "below", "could", "every", "first",
+let words = ["about", "after", "again", "below", "could", "every", "first",
     "found", "great", "house", "large", "learn", "never", "other", "place",
     "plant", "point", "right", "small", "sound", "spell", "still", "study",
     "their", "there", "these", "thing", "think", "three", "water", "where",
     "which", "world", "would", "write"];
 
-var f = function(first, last) {
+let crack = function(first, last) {
+  let words = [];
   words.forEach(function(word) {
     if (first.indexOf(word[0]) !== -1 && last.indexOf(word[word.length - 1]) !== -1) {
-      console.log(word);
+      words.push(word);
     }
   });
+  return words;
 };
 
-f(process.argv[2], process.argv[3]);
+module.exports = {
+  crack,
+};
