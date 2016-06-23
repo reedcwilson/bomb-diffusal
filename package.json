@@ -1,0 +1,13 @@
+{
+  "name": "bomb-diffusal",
+  "version": "1.0.0",
+  "description": "A tool to help diffuse bombs",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Reed Wilson",
+  "license": "MIT",
+  "dependencies": {
+    "lodash": "^4.13.1"
+  }
+}
