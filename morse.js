@@ -112,30 +112,6 @@ let interpret = function(flashes) {
   return createFrequenciesString(matches);
 };
 
-//let findWords = function(words, morseLetters) {
-  //return words.filter(word => {
-    //return morseLetters.every(letter => {
-      //return word.includes(morseToAlphabetMap[letter]);
-    //});
-  //});
-//};
-
-//// assuming spaces in between letters
-//// e.g. "... .... . .-.. .-.." = shell
-
-//let interpret = function(flashes) {
-  //let morseLetters = flashes.split(" ");
-  //let words = Object.keys(wordToFrequencyMap);
-  //let matches = findWords(words, morseLetters);
-  //if (matches.length === 0) {
-    //return "no matches found";
-  //}
-  //if (matches.length === 1) {
-    //return wordToFrequencyMap[matches[0]];
-  //}
-  //return createFrequenciesString(matches);
-//};
-
 module.exports = {
   interpret,
 };
