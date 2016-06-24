@@ -68,8 +68,13 @@ let fifthRound = function(display, rounds) {
 
 let roundFuncs = [ firstRound, secondRound, thirdRound, fourthRound, fifthRound ];
 
-let getNumber = function(r, display, ...numbers) {
-  let rounds = JSON.parse(JSON.stringify(r));
+let rounds;
+
+let init = function() {
+  rounds = [];
+};
+
+let getNumber = function(display, ...numbers) {
   let answer = roundFuncs[rounds.length](display, rounds);
   if (answer.position) {
     answer.label = numbers[answer.position-1];
@@ -78,9 +83,10 @@ let getNumber = function(r, display, ...numbers) {
     answer.position = numbers.indexOf(answer.label)+1;
   }
   rounds.push(answer);
-  return [rounds, answer.label];
+  return answer.label;
 };
 
 module.exports = {
+  init,
   getNumber,
 };

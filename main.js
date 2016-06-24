@@ -5,7 +5,8 @@ let wires = require('./wires'),
     keypad = require('./keypad'),
     memory = require('./memory'),
     morse = require('./morse'),
-    complicatedWires = require('./complicated-wires');
+    complicatedWires = require('./complicated-wires'),
+    wireSequences = require('./wire-sequences.js');
 
 let main = function() {
   //console.log(wires.cut('rkyr', '2'));
@@ -13,6 +14,7 @@ let main = function() {
   //console.log(keypad.find('4', '1', '6', '5'));
   //console.log(morse.interpret(".-.-b-.-"));
   //console.dir(complicatedWires.shouldCut(true, 'w', false));
+  console.log(wireSequences.shouldCut();
 };
 
 main();
