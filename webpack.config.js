@@ -22,7 +22,9 @@ module.exports = {
   ],
   output: {
     path: path.resolve('./'),
-    filename: 'bundle.js'
+    libraryTarget: "var",
+    library: "manual",
+    filename: 'manual.js'
   },
   devtool: 'source-map'
 };
