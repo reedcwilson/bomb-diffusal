@@ -10,7 +10,7 @@ let Page = React.createClass({
             <ModuleList />
           </div>
           <div className="col-md-9">
-            <KeypadModule />
+            <MazeModule />
           </div>
         </div>
       </div>
@@ -35,6 +35,24 @@ let ModuleList = React.createClass({
         <a href="#" className="list-group-item">Passwords</a>
         <a href="#" className="list-group-item">Knobs</a>
         <a href="#" className="list-group-item">Bomb Information</a>
+      </div>
+    );
+  }
+});
+
+let MazeModule = React.createClass({
+  render: () => {
+    return (
+      <div>
+        <h2>Mazes</h2>
+        <table className="maze">
+          <tr><td className="maze-path"></td><td className="maze-path"></td><td className="maze-path"></td><td></td><td></td><td></td></tr>
+          <tr><td className="maze-path"><div className="maze-circle"></div></td><td></td><td className="maze-path"></td><td></td><td></td><td></td></tr>
+          <tr><td className="maze-path"></td><td></td><td></td><td></td><td></td><td><div className="maze-circle"></div></td></tr>
+          <tr><td className="maze-path"></td><td></td><td></td><td></td><td></td><td></td></tr>
+          <tr><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+          <tr><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+        </table>
       </div>
     );
   }

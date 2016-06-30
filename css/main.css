@@ -25,3 +25,22 @@ h1 {
   width: 60px;
 }
 
+.maze {
+  width: 504px;
+}
+.maze td {
+  border: solid 1px #ddd;
+  height: 84px;
+  width: 84px;
+}
+.maze-circle {
+  border: solid 3px #777;
+  border-radius: 50px;
+  height: 55px;
+  margin: 0 auto;
+  width: 55px;
+}
+.maze-path {
+  background-color: #5cb85c;
+}
+
