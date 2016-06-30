@@ -6,3 +6,22 @@ body {
 h1 {
   font-weight: bold;
 }
+
+.keypad-buttons {
+  display: flex;
+  padding: 0;
+  flex-wrap: wrap;
+  font: 40px "Helvetica";
+}
+.keypad-buttons li {
+  border: solid 1px #999;
+  border-radius: 5px;
+  box-shadow: 1px 1px 5px 0px rgba(0,0,0,0.75);
+  flex-shrink: 0;
+  list-style: none;
+  margin: 10px;
+  padding: 5px 10px;
+  text-align: center;
+  width: 60px;
+}
+
