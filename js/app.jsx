@@ -1,7 +1,8 @@
 
+let dispatcher = new Flux.Dispatcher();
 
 let Page = React.createClass({
-  render: () => {
+  render: function() {
     return (
       <div className="container-fluid">
         <h1>Bomb Manual v2</h1>
@@ -18,30 +19,39 @@ let Page = React.createClass({
   }
 });
 
+let modules = [ "Wires", "Button", "Keypads", "Simon Says", "Who's on First",
+  "Memory", "Morse Code", "Complicated Wires", "Wire Sequences", "Mazes",
+  "Passwords", "Knobs", "Bomb Information" ]; 
+
+let ModuleItem = React.createClass({
+  onModuleClicked: (name) => {
+    Actions.changeModule(name);
+  },
+  propTypes: {
+    name: React.PropTypes.string.isRequired
+  },
+  render: function() {
+    return (
+      <a href="#" onClick={this.onModuleClicked} className="list-group-item">{this.props.name}</a>
+    );
+  }
+});
+
 let ModuleList = React.createClass({
-  render: () => {
+  render: function() {
+    let createList = () => {
+      return modules.map((m, i) => (<ModuleItem name={m} key={i} />));
+    };
     return (
       <div className="list-group">
-        <a href="#" className="list-group-item active">Wires</a>
-        <a href="#" className="list-group-item">Button</a>
-        <a href="#" className="list-group-item">Keypads</a>
-        <a href="#" className="list-group-item">Simon Says</a>
-        <a href="#" className="list-group-item">Who's on First</a>
-        <a href="#" className="list-group-item">Memory</a>
-        <a href="#" className="list-group-item">Morse Code</a>
-        <a href="#" className="list-group-item">Complicated Wires</a>
-        <a href="#" className="list-group-item">Wire Sequences</a>
-        <a href="#" className="list-group-item">Mazes</a>
-        <a href="#" className="list-group-item">Passwords</a>
-        <a href="#" className="list-group-item">Knobs</a>
-        <a href="#" className="list-group-item">Bomb Information</a>
+        {createList()}
       </div>
     );
   }
 });
 
 let MazeModule = React.createClass({
-  render: () => {
+  render: function() {
     return (
       <div>
         <h2>Mazes</h2>
@@ -59,7 +69,7 @@ let MazeModule = React.createClass({
 });
 
 let KeypadModule = React.createClass({
-  render: () => {
+  render: function() {
     return (
       <div>
         <h2>Keypads</h2>
@@ -101,3 +111,24 @@ ReactDOM.render(
   <Page />,
   document.getElementById('content')
 );
+
+
+//╔══════════════════════════════════════════════════════════════════════════════╗
+//║                                   ACTIONS                                    ║
+//╚══════════════════════════════════════════════════════════════════════════════╝
+
+let Actions = {
+  changeModule: (id) => {
+    dispatcher.dispatch({
+      type: "moduleChanged",
+      data: {
+        id: id
+      }
+    });
+  }
+};
+
+//╔══════════════════════════════════════════════════════════════════════════════╗
+//║                                   STORES                                     ║
+//╚══════════════════════════════════════════════════════════════════════════════╝
+
