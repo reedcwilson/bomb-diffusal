@@ -24,7 +24,17 @@ let ModuleList = React.createClass({
       <div className="list-group">
         <a href="#" className="list-group-item active">Wires</a>
         <a href="#" className="list-group-item">Button</a>
-        <a href="#" className="list-group-item">Keypad</a>
+        <a href="#" className="list-group-item">Keypads</a>
+        <a href="#" className="list-group-item">Simon Says</a>
+        <a href="#" className="list-group-item">Who's on First</a>
+        <a href="#" className="list-group-item">Memory</a>
+        <a href="#" className="list-group-item">Morse Code</a>
+        <a href="#" className="list-group-item">Complicated Wires</a>
+        <a href="#" className="list-group-item">Wire Sequences</a>
+        <a href="#" className="list-group-item">Mazes</a>
+        <a href="#" className="list-group-item">Passwords</a>
+        <a href="#" className="list-group-item">Knobs</a>
+        <a href="#" className="list-group-item">Bomb Information</a>
       </div>
     );
   }
