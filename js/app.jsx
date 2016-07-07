@@ -66,16 +66,20 @@ let moduleListStore = new Store(dispatcher, function(data, e) {
     case "moduleChanged":
       data.selected = e.data.id;
       break;
+    case "moduleFilterChanged":
+      data.filterText = e.data.newFilterText;
+      break;
     case "keyPressed":
       if (e.data.event.ctrlKey && e.data.event.keyCode === 75) {
         data.shouldFocusFilter = true;
+        data.filterText = '';
       }
       else {
         data.shouldFocusFilter = false;
       }
       break;
   }
-}, {selected: 'Wires'});
+}, {selected: 'Wires', filterText: ''});
 
 
 //╔══════════════════════════════════════════════════════════════════════════════╗
@@ -140,27 +144,22 @@ let ModuleList = React.createClass({
   propTypes: {
     moduleListState: React.PropTypes.object.isRequired
   },
-  getInitialState: function() {
-    return {filterText: ""};
-  },
   componentDidUpdate: function() {
     if (this.props.moduleListState.shouldFocusFilter) {
       ReactDOM.findDOMNode(this.refs.filterInput).focus(); 
     }
   },
   handleFilterChange: function(e) {
-    this.setState({
-      filterText: e.target.value
-    });
+    Actions.moduleFilterChanged(e.target.value);
   },
   render: function() {
     let createList = () => {
       return modules
         .filter((m) => {
-          if (!this.state.filterText) {
+          if (!this.props.moduleListState.filterText) {
             return true;
           }
-          let regexStr = `.*${this.state.filterText.split("").join(".*")}.*`;
+          let regexStr = `.*${this.props.moduleListState.filterText.split("").join(".*")}.*`;
           let regex = new RegExp(regexStr, "i");
           return regex.test(m);
         })
@@ -169,14 +168,11 @@ let ModuleList = React.createClass({
           return (<ModuleItem name={m} key={i} isSelected={isSelected} />)
         });
     };
-    if (this.props.moduleListState.shouldFocusFilter) {
-      this.setState({filterText: ""});
-    }
     return (
       <div className="list-group">
         <div className="list-group-item">
           <div className="input-group">
-            <input type="text" ref="filterInput" className="form-control" placeholder="filter..." value={this.state.filterText} onChange={this.handleFilterChange} />
+            <input type="text" ref="filterInput" className="form-control" placeholder="filter..." value={this.props.moduleListState.filterText} onChange={this.handleFilterChange} />
             <span className="input-group-btn">
               <button className="btn btn-default" type="button">Go!</button>
             </span>
@@ -351,6 +347,14 @@ let Actions = {
       type: "moduleChanged",
       data: {
         id: id
+      }
+    });
+  },
+  moduleFilterChanged: (newFilterText) => {
+    dispatcher.dispatch({
+      type: "moduleFilterChanged",
+      data: {
+        newFilterText,
       }
     });
   },
