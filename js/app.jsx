@@ -5,6 +5,10 @@ let dispatcher = new Flux.Dispatcher();
 //║                                  HELPERS                                     ║
 //╚══════════════════════════════════════════════════════════════════════════════╝
 
+let modules = [ "Wires", "Button", "Keypads", "Simon Says", "Who's on First",
+  "Memory", "Morse Code", "Complicated Wires", "Wire Sequences", "Mazes",
+  "Passwords", "Knobs", "Bomb Information" ]; 
+
 let getModule = (name) => {
   switch (name) {
     case "Mazes":
@@ -62,9 +66,15 @@ class Store {
 }
 
 let moduleListStore = new Store(dispatcher, function(data, e) {
+  let oldFilterText = data.filterText;
   switch (e.type) {
     case "moduleChanged":
       data.selected = e.data.id;
+      data.filterText = '';
+      break;
+    case "selectHighlightedModule":
+      data.selected = data.modules[data.highlightedIndex];
+      data.filterText = '';
       break;
     case "moduleFilterChanged":
       data.filterText = e.data.newFilterText;
@@ -76,19 +86,41 @@ let moduleListStore = new Store(dispatcher, function(data, e) {
       }
       else {
         data.shouldFocusFilter = false;
+
+        switch (e.data.event.keyCode) {
+          case 38: // UP
+            data.highlightedIndex = Math.max(0, data.highlightedIndex - 1);
+            break;
+          case 40: // DOWN
+            data.highlightedIndex = Math.min(data.modules.length - 1, data.highlightedIndex + 1);
+            break;
+          case 13: // ENTER
+            data.selected = data.modules[data.highlightedIndex];
+            data.filterText = '';
+            break;
+          case 27: // ESCAPE
+            data.filterText = '';
+            break;
+        }
       }
       break;
   }
-}, {selected: 'Wires', filterText: ''});
+  if (oldFilterText !== data.filterText) {
+    data.highlightedIndex = 0;
+    data.modules = modules
+      .filter((m) => {
+        if (!data.filterText) {
+          return true;
+        }
+        return new RegExp(`.*${data.filterText.split("").join(".*")}.*`, "i").test(m);
+      });
+  }
+}, {selected: 'Wires', filterText: '', highlightedIndex: 0, modules: modules});
 
 
 //╔══════════════════════════════════════════════════════════════════════════════╗
 //║                                  COMPONENTS                                  ║
 //╚══════════════════════════════════════════════════════════════════════════════╝
-
-let modules = [ "Wires", "Button", "Keypads", "Simon Says", "Who's on First",
-  "Memory", "Morse Code", "Complicated Wires", "Wire Sequences", "Mazes",
-  "Passwords", "Knobs", "Bomb Information" ]; 
 
 let Page = React.createClass({
   getInitialState: function() {
@@ -130,12 +162,19 @@ let ModuleItem = React.createClass({
   },
   propTypes: {
     name: React.PropTypes.string.isRequired,
-    isSelected: React.PropTypes.bool.isRequired
+    isSelected: React.PropTypes.bool.isRequired,
+    isHighlighted: React.PropTypes.bool.isRequired,
   },
   render: function() {
-    let activeClass = this.props.isSelected ? "active" : ""; 
+    let extraClass = "";
+    if (this.props.isSelected) {
+      extraClass = "active";
+    }
+    else if (this.props.isHighlighted) {
+      extraClass = "list-group-item-warning";
+    }
     return (
-      <a href="#" onClick={this.onModuleClicked} className={"list-group-item " + activeClass}>{this.props.name}</a>
+      <a href="#" onClick={this.onModuleClicked} className={"list-group-item " + extraClass}>{this.props.name}</a>
     );
   }
 });
@@ -152,20 +191,22 @@ let ModuleList = React.createClass({
   handleFilterChange: function(e) {
     Actions.moduleFilterChanged(e.target.value);
   },
+  handleButtonClicked: function() {
+    Actions.selectHighlightedModule();
+  },
   render: function() {
     let createList = () => {
-      return modules
-        .filter((m) => {
-          if (!this.props.moduleListState.filterText) {
-            return true;
-          }
-          let regexStr = `.*${this.props.moduleListState.filterText.split("").join(".*")}.*`;
-          let regex = new RegExp(regexStr, "i");
-          return regex.test(m);
-        })
+      return this.props.moduleListState.modules
         .map((m, i) => {
-          let isSelected = this.props.moduleListState.selected === m;
-          return (<ModuleItem name={m} key={i} isSelected={isSelected} />)
+          let isHighlighted = false;
+          let isSelected = false;
+          if (this.props.moduleListState.filterText) {
+            isHighlighted = this.props.moduleListState.highlightedIndex === i;
+          }
+          else {
+            isSelected = this.props.moduleListState.selected === m;
+          }
+          return (<ModuleItem name={m} key={i} isSelected={isSelected} isHighlighted={isHighlighted} />)
         });
     };
     return (
@@ -174,7 +215,7 @@ let ModuleList = React.createClass({
           <div className="input-group">
             <input type="text" ref="filterInput" className="form-control" placeholder="filter..." value={this.props.moduleListState.filterText} onChange={this.handleFilterChange} />
             <span className="input-group-btn">
-              <button className="btn btn-default" type="button">Go!</button>
+              <button className="btn btn-default" type="button" onClick={this.handleButtonClicked}>Go!</button>
             </span>
           </div>
         </div>
@@ -356,6 +397,11 @@ let Actions = {
       data: {
         newFilterText,
       }
+    });
+  },
+  selectHighlightedModule: () => {
+    dispatcher.dispatch({
+      type: "selectHighlightedModule",
     });
   },
   keyPressed: (e) => {
