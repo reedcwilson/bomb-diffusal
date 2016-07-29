@@ -9,39 +9,6 @@ let modules = [ "Wires", "Button", "Keypads", "Simon Says", "Who's on First",
   "Memory", "Morse Code", "Complicated Wires", "Wire Sequences", "Mazes",
   "Passwords", "Knobs", "Bomb Information" ]; 
 
-let getModule = (name) => {
-  switch (name) {
-    case "Mazes":
-      return <MazeModule />;
-    case "Keypads":
-      return <KeypadModule />;
-    case "Wires":
-      return <WiresModule />;
-    case "Button":
-      return <ButtonModule />;
-    case "Simon Says":
-      return <SimonModule />;
-    case "Who's on First":
-      return <OnFirstModule />;
-    case "Memory":
-      return <MemoryModule />;
-    case "Morse Code":
-      return <MorseCodeModule />;
-    case "Complicated Wires":
-      return <ComplicatedWiresModule />;
-    case "Wire Sequences":
-      return <WireSequencesModule />;
-    case "Passwords":
-      return <PasswordsModule />;
-    case "Knobs":
-      return <KnobsModule />;
-    case "Bomb Information":
-      return <BombInfoModule />;
-    default:
-      return [];
-  }
-};
-
 //╔══════════════════════════════════════════════════════════════════════════════╗
 //║                                   STORES                                     ║
 //╚══════════════════════════════════════════════════════════════════════════════╝
@@ -64,6 +31,18 @@ class Store {
     this.subscribers.push(subscriber);
   }
 }
+
+let onFirstStore = new Store(dispatcher, function(data, e) {
+  switch (e.type) {
+    case "wordPressed":
+      data[!data.displayWord ? "displayWord" : "labelWord"] = e.data.word;
+      break;
+    case "clearOnFirst":
+      data.displayWord = null;
+      data.labelWord = null;
+      break;
+  }
+}, {"displayWord": null, "labelWord": null});
 
 let moduleListStore = new Store(dispatcher, function(data, e) {
   let oldFilterText = data.filterText;
@@ -125,7 +104,8 @@ let moduleListStore = new Store(dispatcher, function(data, e) {
 let Page = React.createClass({
   getInitialState: function() {
     return {
-      moduleListState: moduleListStore.data
+      moduleListState: moduleListStore.data,
+      onFirstState: onFirstStore.data
     };
   },
   moduleListStoreChanged: function() {
@@ -133,13 +113,51 @@ let Page = React.createClass({
       moduleListState: moduleListStore.data
     });
   },
+  onFirstWordSelected: function() {
+    this.setState({
+      onFirstState: onFirstStore.data
+    });
+  },
   componentWillMount: function() {
     moduleListStore.subscribe(this.moduleListStoreChanged);
+    onFirstStore.subscribe(this.onFirstWordSelected);
     document.addEventListener("keyup", (e) => {
       Actions.keyPressed(e);
     });
   },
   render: function() {
+    let getModule = (name) => {
+      switch (name) {
+        case "Mazes":
+          return <MazeModule />;
+        case "Keypads":
+          return <KeypadModule />;
+        case "Wires":
+          return <WiresModule />;
+        case "Button":
+          return <ButtonModule />;
+        case "Simon Says":
+          return <SimonModule />;
+        case "Who's on First":
+          return <OnFirstModule displayWord={this.state.onFirstState.displayWord} labelWord={this.state.onFirstState.labelWord} />;
+        case "Memory":
+          return <MemoryModule />;
+        case "Morse Code":
+          return <MorseCodeModule />;
+        case "Complicated Wires":
+          return <ComplicatedWiresModule />;
+        case "Wire Sequences":
+          return <WireSequencesModule />;
+        case "Passwords":
+          return <PasswordsModule />;
+        case "Knobs":
+          return <KnobsModule />;
+        case "Bomb Information":
+          return <BombInfoModule />;
+        default:
+          return [];
+      }
+    };
     return (
       <div className="container-fluid">
         <h1>Bomb Manual v2</h1>
@@ -308,10 +326,74 @@ let SimonModule = React.createClass({
   }
 });
 
-let OnFirstModule = React.createClass({
+let WordItem = React.createClass({
+  propTypes: {
+    word: React.PropTypes.string.isRequired
+  },
+  wordPressed: function() {
+    Actions.wordPressed(this.props.word)
+  },
   render: function() {
+    return (<li onClick={this.wordPressed}>{this.props.word}</li>)
+  }
+});
+
+let OnFirstModule = React.createClass({
+  displayWords: [ "YES", "FIRST", "DISPLAY", "OKAY", "SAYS", "NOTHING", " ",
+    "BLANK", "NO", "LED", "LEAD", "READ", "RED", "REED", "LEED", "HOLD ON",
+    "YOU", "YOU ARE", "YOUR", "YOU'RE", "UR", "THERE", "THEY'RE", "THEIR",
+    "THEY ARE", "SEE", "C", "CEE" ], 
+  labelWords: [ "READY", "FIRST", "NO", "BLANK", "NOTHING", "YES", "WHAT",
+    "WHAT?", "UHHH", "LEFT", "RIGHT", "MIDDLE", "OKAY", "WAIT", "PRESS", "YOU",
+    "YOU ARE", "YOUR", "YOU'RE", "UR", "U", "UH HUH", "UH UH", "DONE", "NEXT",
+    "HOLD", "SURE", "LIKE" ], 
+  propTypes: { 
+    displayWord: React.PropTypes.string,
+    labelWord: React.PropTypes.string
+  },
+  clear: function() {
+    Actions.clearOnFirst();
+  },
+  render: function() {
+    let generateWords = () => {
+      let words = this.props.displayWord ? this.labelWords : this.displayWords;
+      return words.map((w, i) => (<WordItem key={i} word={w} />));
+    };
+    let getDisplayWord = () => {
+      if (this.props.displayWord) {
+        let position = manual.onFirst.findPosition(this.props.displayWord.toLowerCase()).join('-');
+        return (
+          <div>
+            <h3>Display: {this.props.displayWord}</h3>
+            <h3>Position: {position}</h3>
+          </div>
+        );
+      }
+      return null;
+    };
+    let getWordList = () => {
+      if (!this.props.labelWord) {
+        return (<ul className="keypad-buttons">
+          {generateWords()}
+        </ul>)
+      }
+      else {
+        let words = manual.onFirst.getWords(this.props.labelWord);
+        return (
+          <div>
+            <h3>Label: {this.props.labelWord}</h3>
+            {words}
+          </div>
+        )
+      }
+    };
     return (
-      <p>OnFirstModule</p>
+      <div>
+        <h2>Who's On First?</h2>
+        {getDisplayWord()}
+        {getWordList()}
+        <button className="btn btn-primary" onClick={this.clear}>Start Over</button>
+      </div>
     );
   }
 });
@@ -410,6 +492,19 @@ let Actions = {
       data: {
         event: e
       }
+    });
+  },
+  wordPressed: (word) => {
+    dispatcher.dispatch({
+      type: "wordPressed",
+      data: {
+        word: word
+      }
+    });
+  },
+  clearOnFirst: () => {
+    dispatcher.dispatch({
+      type: "clearOnFirst"
     });
   }
 };
