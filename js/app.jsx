@@ -361,10 +361,11 @@ let OnFirstModule = React.createClass({
     };
     let getDisplayWord = () => {
       if (this.props.displayWord) {
-        let position = manual.onFirst.findPosition(this.props.displayWord.toLowerCase()).join('-');
+        let position = manual.onFirst.findPosition(this.props.displayWord.toLowerCase().trim()).join('-');
+        let displayWord = this.props.displayWord === " " ? "_" : this.props.displayWord;
         return (
           <div>
-            <h3>Display: {this.props.displayWord}</h3>
+            <h3>Display: {displayWord}</h3>
             <h3>Position: {position}</h3>
           </div>
         );
