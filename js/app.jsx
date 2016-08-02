@@ -32,6 +32,52 @@ class Store {
   }
 }
 
+let complicatedWiresStore = new Store(dispatcher, function(data, e) {
+  switch (e.type) {
+    case "complicatedButtonClicked":
+      switch (e.data.buttonLabel) {
+        case "On":
+          data.led = true;
+          break;
+        case "Off":
+          data.led = false;
+          break;
+        case "Blue":
+          if (data.colors.includes('b')) {
+            data.colors.splice(data.colors.indexOf('b'), 1);
+          }
+          else {
+            data.colors.push('b');
+          }
+          break;
+        case "Red":
+          if (data.colors.includes('r')) {
+            data.colors.splice(data.colors.indexOf('r'), 1);
+          }
+          else {
+            data.colors.push('r');
+          }
+          break;
+        case "Yes":
+          data.star = true;
+          break;
+        case "No":
+          data.star = false;
+          break;
+      }
+      data.instruction = manual.complicatedWires.shouldCut(data.led, data.colors, data.star);
+      break;
+  }
+}, {"led": false, "colors": [], "star": false, "instruction": manual.complicatedWires.shouldCut(false, [], false)});
+
+let bombInfoStore = new Store(dispatcher, function(data, e) {
+  switch (e.type) {
+    case 'bombInfoChanged':
+      data[e.data.questionType] = e.data.buttonLabel;
+      break;
+  }
+}, {});
+
 let onFirstStore = new Store(dispatcher, function(data, e) {
   switch (e.type) {
     case "wordPressed":
@@ -105,7 +151,9 @@ let Page = React.createClass({
   getInitialState: function() {
     return {
       moduleListState: moduleListStore.data,
-      onFirstState: onFirstStore.data
+      onFirstState: onFirstStore.data,
+      complicatedWiresState: complicatedWiresStore.data,
+      bombInfoState: bombInfoStore.data
     };
   },
   moduleListStoreChanged: function() {
@@ -118,9 +166,21 @@ let Page = React.createClass({
       onFirstState: onFirstStore.data
     });
   },
+  complicatedWiresStoreChanged: function() {
+    this.setState({
+      complicatedWiresState: complicatedWiresStore.data
+    });
+  },
+  bombInfoChanged: function() {
+    this.setState({
+      bombInfoState: bombInfoStore.data
+    });
+  },
   componentWillMount: function() {
     moduleListStore.subscribe(this.moduleListStoreChanged);
     onFirstStore.subscribe(this.onFirstWordSelected);
+    complicatedWiresStore.subscribe(this.complicatedWiresStoreChanged);
+    bombInfoStore.subscribe(this.bombInfoChanged);
     document.addEventListener("keyup", (e) => {
       Actions.keyPressed(e);
     });
@@ -145,7 +205,7 @@ let Page = React.createClass({
         case "Morse Code":
           return <MorseCodeModule />;
         case "Complicated Wires":
-          return <ComplicatedWiresModule />;
+          return <ComplicatedWiresModule led={this.state.complicatedWiresState.led} colors={this.state.complicatedWiresState.colors} star={this.state.complicatedWiresState.star} instruction={this.state.complicatedWiresState.instruction} bombInfo={this.state.bombInfoState} />;
         case "Wire Sequences":
           return <WireSequencesModule />;
         case "Passwords":
@@ -153,7 +213,7 @@ let Page = React.createClass({
         case "Knobs":
           return <KnobsModule />;
         case "Bomb Information":
-          return <BombInfoModule />;
+          return <BombInfoModule bombInfo={this.state.bombInfoState} />;
         default:
           return [];
       }
@@ -415,10 +475,98 @@ let MorseCodeModule = React.createClass({
   }
 });
 
-let ComplicatedWiresModule = React.createClass({
+let ButtonItem = React.createClass({
+  propTypes: {
+    active: React.PropTypes.bool.isRequired,
+    label: React.PropTypes.string.isRequired,
+    callback: React.PropTypes.func.isRequired
+  },
   render: function() {
+    let active = this.props.active ? 'active' : '';
     return (
-      <p>ComplicatedWiresModule</p>
+      <button className={"btn btn-primary " + active} onClick={this.props.callback}>{this.props.label}</button>
+    )
+  }
+});
+
+let ComplicatedWiresModule = React.createClass({
+  codeToInstructionMap: { 
+    "c": "CUT!", 
+    "d": "DON'T CUT"
+  },
+  propTypes: {
+    led: React.PropTypes.bool.isRequired,
+    colors: React.PropTypes.array.isRequired,
+    star: React.PropTypes.bool.isRequired,
+    instruction: React.PropTypes.string.isRequired,
+    bombInfo: React.PropTypes.object.isRequired
+  },
+  getModuleOrInstruction: function() {
+    switch (this.props.instruction) {
+      case 'c':
+      case 'd':
+        return this.codeToInstructionMap[this.props.instruction];
+      case 'p':
+        if (this.props.bombInfo[this.props.instruction] === "Yes") {
+          return this.codeToInstructionMap['c']
+        } else if (this.props.bombInfo[this.props.instruction] === "Yes") {
+          return this.codeToInstructionMap['d']
+        }
+        break;
+      case 'b':
+        if (this.props.bombInfo[this.props.instruction] === "<") {
+          return this.codeToInstructionMap['d']
+        } else if (this.props.bombInfo[this.props.instruction] === "2") {
+          return this.codeToInstructionMap['c']
+        } else if (this.props.bombInfo[this.props.instruction] === ">") {
+          return this.codeToInstructionMap['c']
+        }
+        break;
+      case 's':
+        if (this.props.bombInfo[this.props.instruction] === "Even") {
+          return this.codeToInstructionMap['c']
+        } else if (this.props.bombInfo[this.props.instruction] === "Odd") {
+          return this.codeToInstructionMap['d']
+        }
+        break;
+    }
+    return (<BombInfoModule questionType={this.props.instruction} />)
+  },
+  render: function() {
+    let onButtonClicked = function(arg) {
+      Actions.complicatedButtonClicked(this.props.label)
+    }
+    return (
+      <div>
+        <div className="form-group label-spacing">
+          <label>LED</label>
+        </div>
+        <div className="form-group">
+          <div className="btn-group">
+            <ButtonItem active={this.props.led} label="On" callback={Actions.complicatedButtonClicked.bind(this, "On")} />
+            <ButtonItem active={!this.props.led} label="Off" callback={Actions.complicatedButtonClicked.bind(this, "Off")} />
+          </div>
+        </div>
+        <div className="form-group label-spacing">
+          <label>Wire Colors</label>
+        </div>
+        <div className="form-group">
+          <div className="btn-group">
+            <ButtonItem active={this.props.colors.includes('b')} label="Blue" callback={Actions.complicatedButtonClicked.bind(this, "Blue")} />
+            <ButtonItem active={this.props.colors.includes('r')} label="Red" callback={Actions.complicatedButtonClicked.bind(this, "Red")} />
+          </div>
+        </div>
+        <div className="form-group label-spacing">
+          <label>Star</label>
+        </div>
+        <div className="form-group">
+          <div className="btn-group">
+            <ButtonItem active={this.props.star} label="Yes" callback={Actions.complicatedButtonClicked.bind(this, "Yes")} />
+            <ButtonItem active={!this.props.star} label="No" callback={Actions.complicatedButtonClicked.bind(this, "No")} />
+          </div>
+        </div>
+        {this.getModuleOrInstruction()}
+      </div>
     );
   }
 });
@@ -448,9 +596,67 @@ let KnobsModule = React.createClass({
 });
 
 let BombInfoModule = React.createClass({
+  propTypes: {
+    'questionType': React.PropTypes.string,
+    'bombInfo': React.PropTypes.object
+  },
   render: function() {
+    let questions = {
+      "p": "Does the bomb have a parallel port?", 
+      "b": "How many batteries does the bomb have?", 
+      "s": "Is the last digit in the serial number even or odd?"
+    };
+    let getButtons = function(questionType, labelAndActivePairs) {
+      return labelAndActivePairs.map((pair, i) => {
+        return <ButtonItem key={i} active={pair.active} label={pair.label} callback={Actions.bombInfoChanged.bind(this, questionType, pair.label)} />
+      });
+    };
+    let buildQuestion = (key, questionType) => {
+      let labelAndActivePairs = [];
+      switch (questionType) {
+        case 'p':
+          labelAndActivePairs.push({'active': this.props.bombInfo && this.props.bombInfo.p === "Yes", 'label': 'Yes'});
+          labelAndActivePairs.push({'active': this.props.bombInfo && this.props.bombInfo.p === "No", 'label': 'No'});
+          break;
+        case 'b':
+          labelAndActivePairs.push({'active': this.props.bombInfo && this.props.bombInfo.b === "<", 'label': '<'});
+          labelAndActivePairs.push({'active': this.props.bombInfo && this.props.bombInfo.b === "2", 'label': '2'});
+          labelAndActivePairs.push({'active': this.props.bombInfo && this.props.bombInfo.b === ">", 'label': '>'});
+          break;
+        case 's':
+          labelAndActivePairs.push({'active': this.props.bombInfo && this.props.bombInfo.s === "Even", 'label': 'Even'});
+          labelAndActivePairs.push({'active': this.props.bombInfo && this.props.bombInfo.s === "Odd", 'label': 'Odd'});
+          break;
+      }
+      return (
+        <div key={key}>
+          <div className="form-group label-spacing">
+            <label>{questions[questionType]}</label>
+          </div>
+          <div className="form-group">
+            <div className="btn-group">
+              {getButtons(questionType, labelAndActivePairs)}
+            </div>
+          </div>
+        </div>
+      )
+    };
+    let getQuestions = () => {
+      let uiElements = [];
+      if (this.props.questionType == null) {
+        uiElements.push(<h3 key="0">Bomb Information</h3>);
+        Object.keys(questions).forEach((questionType, i) => {
+          uiElements.push(buildQuestion(i+1, questionType));
+        });
+      } else {
+        uiElements.push(buildQuestion(1, this.props.questionType));
+      }
+      return uiElements;
+    };
     return (
-      <p>BombInfoModule</p>
+      <div>
+        {getQuestions()}
+      </div>
     );
   }
 });
@@ -506,6 +712,23 @@ let Actions = {
   clearOnFirst: () => {
     dispatcher.dispatch({
       type: "clearOnFirst"
+    });
+  },
+  complicatedButtonClicked: (buttonLabel) => {
+    dispatcher.dispatch({
+      type: "complicatedButtonClicked",
+      data: {
+        buttonLabel: buttonLabel
+      }
+    });
+  },
+  bombInfoChanged: (questionType, buttonLabel) => {
+    dispatcher.dispatch({
+      type: "bombInfoChanged",
+      data: {
+        questionType: questionType,
+        buttonLabel: buttonLabel,
+      }
     });
   }
 };

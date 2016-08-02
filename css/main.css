@@ -45,3 +45,7 @@ h1 {
   background-color: #5cb85c;
 }
 
+.label-spacing {
+  margin-bottom: 2px;
+  padding-bottom: 0;
+}
