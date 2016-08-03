@@ -9,6 +9,9 @@ let modules = [ "Wires", "Button", "Keypads", "Simon Says", "Who's on First",
   "Memory", "Morse Code", "Complicated Wires", "Wire Sequences", "Mazes",
   "Passwords", "Knobs", "Bomb Information" ]; 
 
+let symbols = [ "Ϙ", "Ѧ", "ƛ", "ϟ", "Ѭ", "ϗ", "Ͽ", "Ӟ", "Ҩ", "☆", "¿", "Ⓒ",
+  "ὦ", "Ж", "Ԇ", "Ϭ", "¶", "ƀ", "ټ", "Ѱ", "Ͼ", "Ѯ", "★", "҂", "æ", "Ҋ", "Ω" ]; 
+
 //╔══════════════════════════════════════════════════════════════════════════════╗
 //║                                   STORES                                     ║
 //╚══════════════════════════════════════════════════════════════════════════════╝
@@ -89,6 +92,29 @@ let onFirstStore = new Store(dispatcher, function(data, e) {
       break;
   }
 }, {"displayWord": null, "labelWord": null});
+
+let keypadStore = new Store(dispatcher, function(data, e) {
+  switch (e.type) {
+    case "keypadButtonPressed":
+      let idx = symbols.indexOf(e.data.label);
+      if (data.keysPressed.includes(idx)) {
+        data.keysPressed.splice(data.keysPressed.indexOf(idx), 1);
+        data.answer = [];
+      } else if (data.keysPressed.length < 4) {
+        data.keysPressed.push(idx);
+      }
+      if (data.keysPressed.length === 4) {
+        let keys = data.keysPressed.map(i => i+1);
+        data.answer = manual.keypad.find(...keys);
+      }
+      break;
+    case "clearKeypad":
+      data.answer = [];
+      data.keysPressed = [];
+      break;
+
+  }
+}, {keysPressed: [], answer: []});
 
 let moduleListStore = new Store(dispatcher, function(data, e) {
   let oldFilterText = data.filterText;
@@ -176,11 +202,17 @@ let Page = React.createClass({
       bombInfoState: bombInfoStore.data
     });
   },
+  keypadStoreChanged: function() {
+    this.setState({
+      keypadState: keypadStore.data
+    });
+  },
   componentWillMount: function() {
     moduleListStore.subscribe(this.moduleListStoreChanged);
     onFirstStore.subscribe(this.onFirstWordSelected);
     complicatedWiresStore.subscribe(this.complicatedWiresStoreChanged);
     bombInfoStore.subscribe(this.bombInfoChanged);
+    keypadStore.subscribe(this.keypadStoreChanged);
     document.addEventListener("keyup", (e) => {
       Actions.keyPressed(e);
     });
@@ -191,7 +223,7 @@ let Page = React.createClass({
         case "Mazes":
           return <MazeModule />;
         case "Keypads":
-          return <KeypadModule />;
+          return <KeypadModule keysPressed={this.state.keypadState.keysPressed} answer={this.state.keypadState.answer} />;
         case "Wires":
           return <WiresModule />;
         case "Button":
@@ -323,40 +355,40 @@ let MazeModule = React.createClass({
   }
 });
 
+
+
 let KeypadModule = React.createClass({
+  propTypes: {
+    keysPressed: React.PropTypes.array.isRequired,
+    answer: React.PropTypes.array.isRequired
+  },
+  getButtons: function() {
+    return symbols.map((s, i) => {
+      let selected = this.props.keysPressed.includes(i);
+      return <ButtonItem key={i} label={s} selected={selected} action={Actions.keypadButtonPressed} />
+    });
+  },
+  getAnswer: function() {
+    if (this.props.answer.length > 0) {
+      let result = [];
+      result.push(<h3 key={-1}>Answer</h3>);
+      let symbolStr = this.props.answer.map((idx, i) => {
+        return symbols[idx-1];
+        //return <ButtonItem key={i} label={symbols[idx-1]} selected={false} action={() => null} />
+      }).join(" ");
+      result.push(<p className="symbols-answer">{symbolStr}</p>);
+      return result;
+    }
+  },
   render: function() {
     return (
       <div>
         <h2>Keypads</h2>
-        <ul className="keypad-buttons">
-          <li>ὦ</li>
-          <li>Ϙ</li>
-          <li>¶</li>
-          <li>Ω</li>
-          <li>¿</li>
-          <li>ƛ</li>
-          <li>Ͽ</li>
-          <li>Ͼ</li>
-          <li>★</li>
-          <li>☆</li>
-          <li>æ</li>
-          <li>ϗ</li>
-          <li>ƀ</li>
-          <li>Ԇ</li>
-          <li>Ѱ</li>
-          <li>ϟ</li>
-          <li>Ϭ</li>
-          <li>Ж</li>
-          <li>Ѭ</li>
-          <li>Ѧ</li>
-          <li>Ѯ</li>
-          <li>҂</li>
-          <li>Ҋ</li>
-          <li>Ҩ</li>
-          <li>Ⓒ</li>
-          <li>Ӟ</li>
-          <li>ټ</li>
-        </ul>
+        <div className="keypad-buttons">
+          {this.getButtons()}
+          {this.getAnswer()}
+        </div>
+        <button className="btn btn-primary space-above" onClick={Actions.clearKeypad}>Start Over</button>
       </div>
     );
   }
@@ -386,15 +418,18 @@ let SimonModule = React.createClass({
   }
 });
 
-let WordItem = React.createClass({
+let ButtonItem = React.createClass({
   propTypes: {
-    word: React.PropTypes.string.isRequired
+    label: React.PropTypes.string.isRequired,
+    action: React.PropTypes.func.isRequired,
+    selected: React.PropTypes.bool.isRequired
   },
-  wordPressed: function() {
-    Actions.wordPressed(this.props.word)
+  pressed: function() {
+    this.props.action(this.props.label);
   },
   render: function() {
-    return (<li onClick={this.wordPressed}>{this.props.word}</li>)
+    let buttonType = this.props.selected ? "btn-primary" : "btn-default";
+    return (<button className={"btn " + buttonType} onClick={this.pressed}>{this.props.label}</button>)
   }
 });
 
@@ -417,7 +452,7 @@ let OnFirstModule = React.createClass({
   render: function() {
     let generateWords = () => {
       let words = this.props.displayWord ? this.labelWords : this.displayWords;
-      return words.map((w, i) => (<WordItem key={i} word={w} />));
+      return words.map((w, i) => (<ButtonItem key={i} label={w} selected={false} action={Actions.wordPressed} />));
     };
     let getDisplayWord = () => {
       if (this.props.displayWord) {
@@ -434,9 +469,9 @@ let OnFirstModule = React.createClass({
     };
     let getWordList = () => {
       if (!this.props.labelWord) {
-        return (<ul className="keypad-buttons">
+        return (<div className="keypad-buttons">
           {generateWords()}
-        </ul>)
+        </div>)
       }
       else {
         let words = manual.onFirst.getWords(this.props.labelWord);
@@ -475,7 +510,7 @@ let MorseCodeModule = React.createClass({
   }
 });
 
-let ButtonItem = React.createClass({
+let SegmentedButtonItem = React.createClass({
   propTypes: {
     active: React.PropTypes.bool.isRequired,
     label: React.PropTypes.string.isRequired,
@@ -543,8 +578,8 @@ let ComplicatedWiresModule = React.createClass({
         </div>
         <div className="form-group">
           <div className="btn-group">
-            <ButtonItem active={this.props.led} label="On" callback={Actions.complicatedButtonClicked.bind(this, "On")} />
-            <ButtonItem active={!this.props.led} label="Off" callback={Actions.complicatedButtonClicked.bind(this, "Off")} />
+            <SegmentedButtonItem active={this.props.led} label="On" callback={Actions.complicatedButtonClicked.bind(this, "On")} />
+            <SegmentedButtonItem active={!this.props.led} label="Off" callback={Actions.complicatedButtonClicked.bind(this, "Off")} />
           </div>
         </div>
         <div className="form-group label-spacing">
@@ -552,8 +587,8 @@ let ComplicatedWiresModule = React.createClass({
         </div>
         <div className="form-group">
           <div className="btn-group">
-            <ButtonItem active={this.props.colors.includes('b')} label="Blue" callback={Actions.complicatedButtonClicked.bind(this, "Blue")} />
-            <ButtonItem active={this.props.colors.includes('r')} label="Red" callback={Actions.complicatedButtonClicked.bind(this, "Red")} />
+            <SegmentedButtonItem active={this.props.colors.includes('b')} label="Blue" callback={Actions.complicatedButtonClicked.bind(this, "Blue")} />
+            <SegmentedButtonItem active={this.props.colors.includes('r')} label="Red" callback={Actions.complicatedButtonClicked.bind(this, "Red")} />
           </div>
         </div>
         <div className="form-group label-spacing">
@@ -561,8 +596,8 @@ let ComplicatedWiresModule = React.createClass({
         </div>
         <div className="form-group">
           <div className="btn-group">
-            <ButtonItem active={this.props.star} label="Yes" callback={Actions.complicatedButtonClicked.bind(this, "Yes")} />
-            <ButtonItem active={!this.props.star} label="No" callback={Actions.complicatedButtonClicked.bind(this, "No")} />
+            <SegmentedButtonItem active={this.props.star} label="Yes" callback={Actions.complicatedButtonClicked.bind(this, "Yes")} />
+            <SegmentedButtonItem active={!this.props.star} label="No" callback={Actions.complicatedButtonClicked.bind(this, "No")} />
           </div>
         </div>
         {this.getModuleOrInstruction()}
@@ -608,7 +643,7 @@ let BombInfoModule = React.createClass({
     };
     let getButtons = function(questionType, labelAndActivePairs) {
       return labelAndActivePairs.map((pair, i) => {
-        return <ButtonItem key={i} active={pair.active} label={pair.label} callback={Actions.bombInfoChanged.bind(this, questionType, pair.label)} />
+        return <SegmentedButtonItem key={i} active={pair.active} label={pair.label} callback={Actions.bombInfoChanged.bind(this, questionType, pair.label)} />
       });
     };
     let buildQuestion = (key, questionType) => {
@@ -730,6 +765,19 @@ let Actions = {
         buttonLabel: buttonLabel,
       }
     });
-  }
+  },
+  keypadButtonPressed: (label) => {
+    dispatcher.dispatch({
+      type: "keypadButtonPressed",
+      data: {
+        label: label
+      }
+    });
+  },
+  clearKeypad: () => {
+    dispatcher.dispatch({
+      type: "clearKeypad"
+    });
+  },
 };
 
