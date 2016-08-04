@@ -93,6 +93,21 @@ let onFirstStore = new Store(dispatcher, function(data, e) {
   }
 }, {"displayWord": null, "labelWord": null});
 
+let morseStore = new Store(dispatcher, function(data, e) {
+  switch (e.type) {
+    case "morseButtonPressed":
+      data.string.push(e.data.label);
+      break;
+    case "clearMorse":
+      data.string = [];
+      break;
+    case "morseBackPressed":
+      data.string.pop();
+      break;
+  }
+  data.options = data.string.length > 3 ? manual.morse.interpret(data.string.join('')) : null;
+}, {string: [], options: null});
+
 let keypadStore = new Store(dispatcher, function(data, e) {
   switch (e.type) {
     case "keypadButtonPressed":
@@ -179,7 +194,8 @@ let Page = React.createClass({
       moduleListState: moduleListStore.data,
       onFirstState: onFirstStore.data,
       complicatedWiresState: complicatedWiresStore.data,
-      bombInfoState: bombInfoStore.data
+      bombInfoState: bombInfoStore.data,
+      morseState: morseStore.data
     };
   },
   moduleListStoreChanged: function() {
@@ -207,12 +223,18 @@ let Page = React.createClass({
       keypadState: keypadStore.data
     });
   },
+  morseStoreChanged: function() {
+    this.setState({
+      keypadState: morseStore.data
+    });
+  },
   componentWillMount: function() {
     moduleListStore.subscribe(this.moduleListStoreChanged);
     onFirstStore.subscribe(this.onFirstWordSelected);
     complicatedWiresStore.subscribe(this.complicatedWiresStoreChanged);
     bombInfoStore.subscribe(this.bombInfoChanged);
     keypadStore.subscribe(this.keypadStoreChanged);
+    morseStore.subscribe(this.morseStoreChanged);
     document.addEventListener("keyup", (e) => {
       Actions.keyPressed(e);
     });
@@ -235,7 +257,7 @@ let Page = React.createClass({
         case "Memory":
           return <MemoryModule />;
         case "Morse Code":
-          return <MorseCodeModule />;
+          return <MorseCodeModule string={this.state.morseState.string} options={this.state.morseState.options} />;
         case "Complicated Wires":
           return <ComplicatedWiresModule led={this.state.complicatedWiresState.led} colors={this.state.complicatedWiresState.colors} star={this.state.complicatedWiresState.star} instruction={this.state.complicatedWiresState.instruction} bombInfo={this.state.bombInfoState} />;
         case "Wire Sequences":
@@ -374,7 +396,6 @@ let KeypadModule = React.createClass({
       result.push(<h3 key={-1}>Answer</h3>);
       let symbolStr = this.props.answer.map((idx, i) => {
         return symbols[idx-1];
-        //return <ButtonItem key={i} label={symbols[idx-1]} selected={false} action={() => null} />
       }).join(" ");
       result.push(<p className="symbols-answer">{symbolStr}</p>);
       return result;
@@ -503,9 +524,45 @@ let MemoryModule = React.createClass({
 });
 
 let MorseCodeModule = React.createClass({
+  propTypes: {
+    string: React.PropTypes.array.isRequired,
+    options: React.PropTypes.string
+  },
   render: function() {
+    let getSection = (str, label) => {
+      if (str) {
+        return (
+          <div className="form-group label-spacing">
+            <label>{label}</label>
+            <pre>{str}</pre>
+          </div>
+        )
+      }
+    };
+    let getCurrentString = () => {
+      return getSection(this.props.string.join(''), "Current String");
+    };
+    let getOptions = () => {
+      return getSection(this.props.options, "Possible Answers");
+    };
     return (
-      <p>MorseCodeModule</p>
+      <div>
+        <div className="form-group">
+          <div className="btn-toolbar">
+            <div className="btn-group">
+              <SegmentedButtonItem active={false} label="dot" callback={Actions.morseButtonPressed.bind(this, '.')} />
+              <SegmentedButtonItem active={false} label="dash" callback={Actions.morseButtonPressed.bind(this, '-')} />
+              <SegmentedButtonItem active={false} label="break" callback={Actions.morseButtonPressed.bind(this, 'b')} />
+            </div>
+            <div className="btn-group">
+              <SegmentedButtonItem active={false} label="backspace" callback={Actions.morseBackPressed} />
+            </div>
+          </div>
+        </div>
+        {getCurrentString()}
+        {getOptions()}
+        <ButtonItem selected={false} label="Start Over" action={Actions.clearMorse} />
+      </div>
     );
   }
 });
@@ -777,6 +834,24 @@ let Actions = {
   clearKeypad: () => {
     dispatcher.dispatch({
       type: "clearKeypad"
+    });
+  },
+  morseButtonPressed: (label) => {
+    dispatcher.dispatch({
+      type: "morseButtonPressed",
+      data: {
+        label: label
+      }
+    });
+  },
+  morseBackPressed: (label) => {
+    dispatcher.dispatch({
+      type: "morseBackPressed"
+    });
+  },
+  clearMorse: () => {
+    dispatcher.dispatch({
+      type: "clearMorse"
     });
   },
 };
