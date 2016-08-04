@@ -743,14 +743,13 @@ let KnobsModule = React.createClass({
       )
     };
     let getPosition = () => {
-      if (this.props.position) {
-        return (
-          <div className="form-group label-spacing">
-            <label>Position</label>
-            <p>{this.props.position}</p>
-          </div>
-        );
-      }
+      let position = this.props.position ? this.props.position : 'Invalid';
+      return (
+        <div className="form-group label-spacing">
+          <label>Position</label>
+          <p>{position}</p>
+        </div>
+      );
     };
     return (
       <div className="knob-buttons">
