@@ -141,18 +141,18 @@ let passwordsStore = new Store(dispatcher, function(data, e) {
     case "passwordLettersChanged":
       data[e.data.col === 0 ? "first" : "last"] = e.data.letters;
       if (data.first.length === 6 && data.last.length === 6) {
-        data.password = manual.passwords.crack(data.first, data.last);
+        data.passwords = manual.passwords.crack(data.first, data.last);
       } else {
-        data.password = null;
+        data.passwords = [];
       }
       break;
     case "clearPasswords":
       data.first = "";
       data.last = "";
-      data.password = null;
+      data.passwords = [];
       break;
   }
-}, {first: "", last: "", password: null});
+}, {first: "", last: "", passwords: []});
 
 let keypadStore = new Store(dispatcher, function(data, e) {
   switch (e.type) {
@@ -242,7 +242,8 @@ let Page = React.createClass({
       complicatedWiresState: complicatedWiresStore.data,
       bombInfoState: bombInfoStore.data,
       morseState: morseStore.data,
-      knobsState: knobsStore.data
+      knobsState: knobsStore.data,
+      passwordsState: passwordsStore.data
     };
   },
   moduleListStoreChanged: function() {
@@ -280,6 +281,11 @@ let Page = React.createClass({
       knobsState: knobsStore.data
     });
   },
+  passwordsStoreChanged: function() {
+    this.setState({
+      knobsState: knobsStore.data
+    });
+  },
   componentWillMount: function() {
     moduleListStore.subscribe(this.moduleListStoreChanged);
     onFirstStore.subscribe(this.onFirstWordSelected);
@@ -288,6 +294,7 @@ let Page = React.createClass({
     keypadStore.subscribe(this.keypadStoreChanged);
     morseStore.subscribe(this.morseStoreChanged);
     knobsStore.subscribe(this.knobsStoreChanged);
+    passwordsStore.subscribe(this.passwordsStoreChanged);
     document.addEventListener("keyup", (e) => {
       Actions.keyPressed(e);
     });
@@ -316,7 +323,7 @@ let Page = React.createClass({
         case "Wire Sequences":
           return <WireSequencesModule />;
         case "Passwords":
-          return <PasswordsModule />;
+          return <PasswordsModule first={this.state.passwordsState.first} last={this.state.passwordsState.last} passwords={this.state.passwordsState.passwords} />;
         case "Knobs":
           return <KnobsModule knobs={this.state.knobsState.knobs} position={this.state.knobsState.position} />;
         case "Bomb Information":
@@ -732,21 +739,26 @@ let PasswordsModule = React.createClass({
   propTypes: {
     first: React.PropTypes.string.isRequired,
     last: React.PropTypes.string.isRequired,
-    password: React.PropTypes.string
+    passwords: React.PropTypes.array.isRequired
   },
   firstLettersChanged: function(e) {
-    Actions.passwordLettersChanged(0, letters.target.value);
+    if (e.target.value.length < 7) {
+      Actions.passwordLettersChanged(0, e.target.value);
+    }
   },
   lastLettersChanged: function(e) {
-    Actions.passwordLettersChanged(1, letters.target.value);
+    if (e.target.value.length < 7) {
+      Actions.passwordLettersChanged(1, e.target.value);
+    }
   },
   render: function() {
-    let getPassword: () => {
+    let getPassword = () => {
+      let passwords = this.props.passwords.join(',');
       if (this.props.password) {
         return (
           <div className="form-group label-spacing">
             <label>Password</label>
-            <p>{this.props.password}</p>
+            <p>{password}</p>
           </div>
         );
       }
@@ -997,7 +1009,7 @@ let Actions = {
       type: "clearKnobs"
     });
   },
-  passwordLettersChange (col, letters) {
+  passwordLettersChanged: (col, letters) => {
     dispatcher.dispatch({
       type: "passwordLettersChanged",
       data: {
