@@ -108,6 +108,34 @@ let morseStore = new Store(dispatcher, function(data, e) {
   data.options = data.string.length > 3 ? manual.morse.interpret(data.string.join('')) : null;
 }, {string: [], options: null});
 
+let buildKnobs = function() {
+  let knobs = [];
+  for (let i = 0; i < 2; i++) {
+    let row = [];
+    for (let j = 0; j < 6; j++) {
+      row.push(0);
+    }
+    knobs.push(row);
+  }
+  return knobs;
+};
+let knobsStore = new Store(dispatcher, function(data, e) {
+  switch (e.type) {
+    case "knobsButtonPressed":
+      let row = e.data.row;
+      let col = e.data.col;
+      data.knobs[row][col] = data.knobs[row][col] === 0 ? 1 : 0;
+      let four = [ data.knobs[0][3], data.knobs[1][3] ];
+      let five = [ data.knobs[0][4], data.knobs[1][4] ];
+      data.position = manual.knobs.getPosition(four, five);
+      break;
+    case "clearKnobs":
+      data.knobs = buildKnobs();
+      data.position = null;
+      break;
+  }
+}, {knobs: buildKnobs(), position: null});
+
 let keypadStore = new Store(dispatcher, function(data, e) {
   switch (e.type) {
     case "keypadButtonPressed":
@@ -195,7 +223,8 @@ let Page = React.createClass({
       onFirstState: onFirstStore.data,
       complicatedWiresState: complicatedWiresStore.data,
       bombInfoState: bombInfoStore.data,
-      morseState: morseStore.data
+      morseState: morseStore.data,
+      knobsState: knobsStore.data
     };
   },
   moduleListStoreChanged: function() {
@@ -225,7 +254,12 @@ let Page = React.createClass({
   },
   morseStoreChanged: function() {
     this.setState({
-      keypadState: morseStore.data
+      morseState: morseStore.data
+    });
+  },
+  knobsStoreChanged: function() {
+    this.setState({
+      knobsState: knobsStore.data
     });
   },
   componentWillMount: function() {
@@ -235,6 +269,7 @@ let Page = React.createClass({
     bombInfoStore.subscribe(this.bombInfoChanged);
     keypadStore.subscribe(this.keypadStoreChanged);
     morseStore.subscribe(this.morseStoreChanged);
+    knobsStore.subscribe(this.knobsStoreChanged);
     document.addEventListener("keyup", (e) => {
       Actions.keyPressed(e);
     });
@@ -265,7 +300,7 @@ let Page = React.createClass({
         case "Passwords":
           return <PasswordsModule />;
         case "Knobs":
-          return <KnobsModule />;
+          return <KnobsModule knobs={this.state.knobsState.knobs} position={this.state.knobsState.position} />;
         case "Bomb Information":
           return <BombInfoModule bombInfo={this.state.bombInfoState} />;
         default:
@@ -570,13 +605,17 @@ let MorseCodeModule = React.createClass({
 let SegmentedButtonItem = React.createClass({
   propTypes: {
     active: React.PropTypes.bool.isRequired,
+    disabled: React.PropTypes.bool,
+    btnType: React.PropTypes.string,
     label: React.PropTypes.string.isRequired,
     callback: React.PropTypes.func.isRequired
   },
   render: function() {
     let active = this.props.active ? 'active' : '';
+    let disabled = this.props.disabled ? 'disabled' : '';
+    let btnType = this.props.btnType ? this.props.btnType : 'btn-primary';
     return (
-      <button className={"btn btn-primary " + active} onClick={this.props.callback}>{this.props.label}</button>
+      <button className={"btn " + btnType + " "  + active + " " + disabled} onClick={this.props.callback}>{this.props.label}</button>
     )
   }
 });
@@ -680,9 +719,46 @@ let PasswordsModule = React.createClass({
 });
 
 let KnobsModule = React.createClass({
+  propTypes: {
+    knobs: React.PropTypes.array.isRequired,
+    position: React.PropTypes.string
+  },
   render: function() {
+    let getButtons = (row) => {
+      let result = [];
+      for (let i = 0; i < 6; i++) {
+        let disabled = (i === 3 || i === 4) ? false : true;
+        let label = this.props.knobs[row][i] === 1 ? 'X' : '';
+        result.push(<SegmentedButtonItem key={i} btnType={'btn-primary'} disabled={disabled} active={false} label={label} callback={Actions.knobsButtonPressed.bind(this, row, i)} />);
+      }
+      return result;
+    };
+    let getButtonRow = function(row) {
+      return (
+        <div className="form-group">
+          <div className="btn-group">
+            {getButtons(row)}
+          </div>
+        </div>
+      )
+    };
+    let getPosition = () => {
+      if (this.props.position) {
+        return (
+          <div className="form-group label-spacing">
+            <label>Position</label>
+            <p>{this.props.position}</p>
+          </div>
+        );
+      }
+    };
     return (
-      <p>KnobsModule</p>
+      <div className="knob-buttons">
+        {getButtonRow(0)}
+        {getButtonRow(1)}
+        {getPosition()}
+        <ButtonItem selected={false} label="Start Over" action={Actions.clearKnobs} />
+      </div>
     );
   }
 });
@@ -854,5 +930,19 @@ let Actions = {
       type: "clearMorse"
     });
   },
+  knobsButtonPressed: (row, col) => {
+    dispatcher.dispatch({
+      type: "knobsButtonPressed",
+      data: {
+        row: row,
+        col: col
+      }
+    });
+  },
+  clearKnobs: () => {
+    dispatcher.dispatch({
+      type: "clearKnobs"
+    });
+  }
 };
 
