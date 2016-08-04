@@ -10,5 +10,6 @@ module.exports = {
   complicatedWires: require('./lib/complicated-wires'),
   wireSequences: require('./lib/wire-sequences.js'),
   maze: require('./lib/maze'),
+  passwords: require('./lib/passwords.js'),
   knobs: require('./lib/knobs'),
 }
