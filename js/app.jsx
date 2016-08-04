@@ -135,6 +135,24 @@ let knobsStore = new Store(dispatcher, function(data, e) {
       break;
   }
 }, {knobs: buildKnobs(), position: null});
+ 
+let passwordsStore = new Store(dispatcher, function(data, e) {
+  switch (e.type) {
+    case "passwordLettersChanged":
+      data[e.data.col === 0 ? "first" : "last"] = e.data.letters;
+      if (data.first.length === 6 && data.last.length === 6) {
+        data.password = manual.passwords.crack(data.first, data.last);
+      } else {
+        data.password = null;
+      }
+      break;
+    case "clearPasswords":
+      data.first = "";
+      data.last = "";
+      data.password = null;
+      break;
+  }
+}, {first: "", last: "", password: null});
 
 let keypadStore = new Store(dispatcher, function(data, e) {
   switch (e.type) {
@@ -711,9 +729,45 @@ let WireSequencesModule = React.createClass({
 });
 
 let PasswordsModule = React.createClass({
+  propTypes: {
+    first: React.PropTypes.string.isRequired,
+    last: React.PropTypes.string.isRequired,
+    password: React.PropTypes.string
+  },
+  firstLettersChanged: function(e) {
+    Actions.passwordLettersChanged(0, letters.target.value);
+  },
+  lastLettersChanged: function(e) {
+    Actions.passwordLettersChanged(1, letters.target.value);
+  },
   render: function() {
+    let getPassword: () => {
+      if (this.props.password) {
+        return (
+          <div className="form-group label-spacing">
+            <label>Password</label>
+            <p>{this.props.password}</p>
+          </div>
+        );
+      }
+    };
     return (
-      <p>PasswordsModule</p>
+      <div>
+        <div className="form-group label-spacing">
+          <label>First Position</label>
+        </div>
+        <div className="form-group">
+          <input type="text" className="form-control" placeholder="letters (e.g. fixazl)" value={this.props.first} onChange={this.firstLettersChanged} />
+        </div>
+        <div className="form-group label-spacing">
+          <label>Last Position</label>
+        </div>
+        <div className="form-group">
+          <input type="text" className="form-control" placeholder="letters (e.g. qklvgh)" value={this.props.last} onChange={this.lastLettersChanged} />
+        </div>
+        {getPassword()}
+        <ButtonItem selected={false} label="Start Over" action={Actions.clearPasswords} />
+      </div>
     );
   }
 });
@@ -941,6 +995,20 @@ let Actions = {
   clearKnobs: () => {
     dispatcher.dispatch({
       type: "clearKnobs"
+    });
+  },
+  passwordLettersChange (col, letters) {
+    dispatcher.dispatch({
+      type: "passwordLettersChanged",
+      data: {
+        col: col,
+        letters: letters
+      }
+    });
+  },
+  clearPasswords: () => {
+    dispatcher.dispatch({
+      type: "clearPasswords"
     });
   }
 };
