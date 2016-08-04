@@ -753,12 +753,12 @@ let PasswordsModule = React.createClass({
   },
   render: function() {
     let getPassword = () => {
-      let passwords = this.props.passwords.join(',');
-      if (this.props.password) {
+      if (this.props.passwords.length > 0) {
+        let passwords = this.props.passwords.join(',');
         return (
           <div className="form-group label-spacing">
-            <label>Password</label>
-            <p>{password}</p>
+            <label>Possible Passwords</label>
+            <p>{passwords}</p>
           </div>
         );
       }
