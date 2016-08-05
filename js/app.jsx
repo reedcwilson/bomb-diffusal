@@ -303,9 +303,10 @@ let wiresStore = new Store(dispatcher, function(data, e) {
     return wires.filter((wire) => wire).join("");
   };
   switch (e.type) {
+    case "bombInfoChanged":
     case "wireColorChanged":
       data.wires[e.data.wireIdx] = e.data.color;
-      data.result = manual.wires.cut(getWiresStr(data.wires), 0);
+      data.result = manual.wires.cut(getWiresStr(data.wires), bombInfoStore.data.s === "Odd");
       break;
     case "clearWires":
       data.wires = getDefaultWires();
@@ -472,7 +473,7 @@ let Page = React.createClass({ getInitialState: function() {
         case "Keypads":
           return <KeypadModule keysPressed={this.state.keypadState.keysPressed} answer={this.state.keypadState.answer} />;
         case "Wires":
-          return <WiresModule wires={this.state.wiresState.wires} result={this.state.wiresState.result} />;
+          return <WiresModule wires={this.state.wiresState.wires} result={this.state.wiresState.result} oddSerial={this.state.bombInfoState.s ? this.state.bombInfoState.s === "Odd" : null} />;
         case "Button":
           return <ButtonModule />;
         case "Simon Says":
@@ -643,7 +644,8 @@ let KeypadModule = React.createClass({
 let WiresModule = React.createClass({
   propTypes: {
     wires: React.PropTypes.array.isRequired,
-    result: React.PropTypes.string
+    result: React.PropTypes.string,
+    oddSerial: React.PropTypes.bool
   },
   render: function() {
     let wireColors = [{ 
@@ -698,13 +700,17 @@ let WiresModule = React.createClass({
       return wires;
     };
     let getResult = () => {
-      let result = this.props.result || "Invalid";
-      return (
-        <div className="form-group label-spacing">
-          <label>Result</label>
-          <p>{result}</p>
-        </div>
-      );
+      if (this.props.wires.filter(w => w).length > 3 && this.props.oddSerial == null) {
+        return <BombInfoModule questionType="s" />
+      } else {
+        let result = this.props.result || "Invalid";
+        return (
+          <div className="form-group label-spacing">
+            <label>Result</label>
+            <p>{result}</p>
+          </div>
+        );
+      }
     };
     return (
       <div>
