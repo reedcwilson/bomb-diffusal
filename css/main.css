@@ -7,6 +7,17 @@ h1 {
   font-weight: bold;
 }
 
+.btn-black {
+  color: #fff;
+  background-color: #333;
+  border-color: #3f3f3f;
+}
+.btn-black.active, .btn-black:hover, .btn-black:focus {
+  color: #fff;
+  background-color: #555;
+  border-color: #5f5f5f;
+}
+
 .knob-buttons button {
   min-height: 40px;
   min-width: 80px;
@@ -49,4 +60,8 @@ h1 {
 
 .symbols-answer {
   font: 40px "Helvetica";
+}
+
+.wire-buttons button {
+  min-width: 75px;
 }

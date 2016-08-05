@@ -12,6 +12,147 @@ let modules = [ "Wires", "Button", "Keypads", "Simon Says", "Who's on First",
 let symbols = [ "Ϙ", "Ѧ", "ƛ", "ϟ", "Ѭ", "ϗ", "Ͽ", "Ӟ", "Ҩ", "☆", "¿", "Ⓒ",
   "ὦ", "Ж", "Ԇ", "Ϭ", "¶", "ƀ", "ټ", "Ѱ", "Ͼ", "Ѯ", "★", "҂", "æ", "Ҋ", "Ω" ]; 
 
+
+//╔══════════════════════════════════════════════════════════════════════════════╗
+//║                                   ACTIONS                                    ║
+//╚══════════════════════════════════════════════════════════════════════════════╝
+
+let Actions = {
+  changeModule: (id) => {
+    dispatcher.dispatch({
+      type: "moduleChanged",
+      data: {
+        id: id
+      }
+    });
+  },
+  moduleFilterChanged: (newFilterText) => {
+    dispatcher.dispatch({
+      type: "moduleFilterChanged",
+      data: {
+        newFilterText,
+      }
+    });
+  },
+  selectHighlightedModule: () => {
+    dispatcher.dispatch({
+      type: "selectHighlightedModule",
+    });
+  },
+  keyPressed: (e) => {
+    dispatcher.dispatch({
+      type: "keyPressed",
+      data: {
+        event: e
+      }
+    });
+  },
+  wordPressed: (word) => {
+    dispatcher.dispatch({
+      type: "wordPressed",
+      data: {
+        word: word
+      }
+    });
+  },
+  clearOnFirst: () => {
+    dispatcher.dispatch({
+      type: "clearOnFirst"
+    });
+  },
+  complicatedButtonClicked: (buttonLabel) => {
+    dispatcher.dispatch({
+      type: "complicatedButtonClicked",
+      data: {
+        buttonLabel: buttonLabel
+      }
+    });
+  },
+  bombInfoChanged: (questionType, buttonLabel) => {
+    dispatcher.dispatch({
+      type: "bombInfoChanged",
+      data: {
+        questionType: questionType,
+        buttonLabel: buttonLabel,
+      }
+    });
+  },
+  keypadButtonPressed: (label) => {
+    dispatcher.dispatch({
+      type: "keypadButtonPressed",
+      data: {
+        label: label
+      }
+    });
+  },
+  clearKeypad: () => {
+    dispatcher.dispatch({
+      type: "clearKeypad"
+    });
+  },
+  morseButtonPressed: (label) => {
+    dispatcher.dispatch({
+      type: "morseButtonPressed",
+      data: {
+        label: label
+      }
+    });
+  },
+  morseBackPressed: (label) => {
+    dispatcher.dispatch({
+      type: "morseBackPressed"
+    });
+  },
+  clearMorse: () => {
+    dispatcher.dispatch({
+      type: "clearMorse"
+    });
+  },
+  knobsButtonPressed: (row, col) => {
+    dispatcher.dispatch({
+      type: "knobsButtonPressed",
+      data: {
+        row: row,
+        col: col
+      }
+    });
+  },
+  clearKnobs: () => {
+    dispatcher.dispatch({
+      type: "clearKnobs"
+    });
+  },
+  passwordLettersChanged: (col, letters) => {
+    dispatcher.dispatch({
+      type: "passwordLettersChanged",
+      data: {
+        col: col,
+        letters: letters
+      }
+    });
+  },
+  clearPasswords: () => {
+    dispatcher.dispatch({
+      type: "clearPasswords"
+    });
+  },
+  wireColorChanged: (color, wireIdx) => {
+    dispatcher.dispatch({
+      type: "wireColorChanged",
+      data: {
+        color: color,
+        wireIdx: wireIdx
+      }
+    });
+  },
+  clearWires: () => {
+    dispatcher.dispatch({
+      type: "clearWires"
+    });
+  }
+};
+
+
 //╔══════════════════════════════════════════════════════════════════════════════╗
 //║                                   STORES                                     ║
 //╚══════════════════════════════════════════════════════════════════════════════╝
@@ -154,6 +295,25 @@ let passwordsStore = new Store(dispatcher, function(data, e) {
   }
 }, {first: "", last: "", passwords: []});
 
+let getDefaultWires = function() {
+  return [null, null, null, null, null, null];
+}; 
+let wiresStore = new Store(dispatcher, function(data, e) {
+  let getWiresStr = function(wires) {
+    return wires.filter((wire) => wire).join("");
+  };
+  switch (e.type) {
+    case "wireColorChanged":
+      data.wires[e.data.wireIdx] = e.data.color;
+      data.result = manual.wires.cut(getWiresStr(data.wires), 0);
+      break;
+    case "clearWires":
+      data.wires = getDefaultWires();
+      data.result = null;
+      break;
+  }
+}, {wires: getDefaultWires(), result: null});
+
 let keypadStore = new Store(dispatcher, function(data, e) {
   switch (e.type) {
     case "keypadButtonPressed":
@@ -229,13 +389,11 @@ let moduleListStore = new Store(dispatcher, function(data, e) {
   }
 }, {selected: 'Wires', filterText: '', highlightedIndex: 0, modules: modules});
 
+//╔══════════════════════════════════════════════════════════════════════════════╗ 
+//║                                  COMPONENTS                                  ║ 
+//╚══════════════════════════════════════════════════════════════════════════════╝ 
 
-//╔══════════════════════════════════════════════════════════════════════════════╗
-//║                                  COMPONENTS                                  ║
-//╚══════════════════════════════════════════════════════════════════════════════╝
-
-let Page = React.createClass({
-  getInitialState: function() {
+let Page = React.createClass({ getInitialState: function() {
     return {
       moduleListState: moduleListStore.data,
       onFirstState: onFirstStore.data,
@@ -243,7 +401,8 @@ let Page = React.createClass({
       bombInfoState: bombInfoStore.data,
       morseState: morseStore.data,
       knobsState: knobsStore.data,
-      passwordsState: passwordsStore.data
+      passwordsState: passwordsStore.data,
+      wiresState: wiresStore.data
     };
   },
   moduleListStoreChanged: function() {
@@ -283,19 +442,25 @@ let Page = React.createClass({
   },
   passwordsStoreChanged: function() {
     this.setState({
-      knobsState: knobsStore.data
-    });
-  },
-  componentWillMount: function() {
-    moduleListStore.subscribe(this.moduleListStoreChanged);
-    onFirstStore.subscribe(this.onFirstWordSelected);
-    complicatedWiresStore.subscribe(this.complicatedWiresStoreChanged);
-    bombInfoStore.subscribe(this.bombInfoChanged);
-    keypadStore.subscribe(this.keypadStoreChanged);
-    morseStore.subscribe(this.morseStoreChanged);
-    knobsStore.subscribe(this.knobsStoreChanged);
-    passwordsStore.subscribe(this.passwordsStoreChanged);
-    document.addEventListener("keyup", (e) => {
+      passwordsState: passwordsStore.data 
+    }); 
+  }, 
+  wiresStoreChanged: function() {
+    this.setState({
+      wiresState: wiresStore.data 
+    }); 
+  }, 
+  componentWillMount: function() { 
+    moduleListStore.subscribe(this.moduleListStoreChanged); 
+    onFirstStore.subscribe(this.onFirstWordSelected); 
+    complicatedWiresStore.subscribe(this.complicatedWiresStoreChanged); 
+    bombInfoStore.subscribe(this.bombInfoChanged); 
+    keypadStore.subscribe(this.keypadStoreChanged); 
+    morseStore.subscribe(this.morseStoreChanged); 
+    knobsStore.subscribe(this.knobsStoreChanged); 
+    passwordsStore.subscribe(this.passwordsStoreChanged); 
+    wiresStore.subscribe(this.wiresStoreChanged); 
+    document.addEventListener("keyup", (e) => { 
       Actions.keyPressed(e);
     });
   },
@@ -307,7 +472,7 @@ let Page = React.createClass({
         case "Keypads":
           return <KeypadModule keysPressed={this.state.keypadState.keysPressed} answer={this.state.keypadState.answer} />;
         case "Wires":
-          return <WiresModule />;
+          return <WiresModule wires={this.state.wiresState.wires} result={this.state.wiresState.result} />;
         case "Button":
           return <ButtonModule />;
         case "Simon Says":
@@ -476,9 +641,77 @@ let KeypadModule = React.createClass({
 });
 
 let WiresModule = React.createClass({
+  propTypes: {
+    wires: React.PropTypes.array.isRequired,
+    result: React.PropTypes.string
+  },
   render: function() {
+    let wireColors = [{ 
+      label: "X",
+      value: null,
+      btnType: "btn-default"
+    }, { 
+      label: "Red",
+      value: 'r',
+      btnType: "btn-danger"
+    }, { 
+      label: "White",
+      value: 'w',
+      btnType: "btn-default"
+    }, { 
+      label: "Blue",
+      value: 'b',
+      btnType: "btn-primary"
+    }, { 
+      label: "Yellow",
+      value: 'y',
+      btnType: "btn-warning"
+    }, { 
+      label: "Black",
+      value: 'k',
+      btnType: "btn-black"
+    }];
+    let getButtons = (wireIdx) => {
+      let wire = this.props.wires[wireIdx];
+      return wireColors.map((color, i) => {
+        let active = wire === color.value;
+        let btnType = active ? color.btnType : "btn-default";
+        return <SegmentedButtonItem key={i} active={active} label={color.label} btnType={btnType} callback={Actions.wireColorChanged.bind(this, color.value, wireIdx)} />
+      });
+    };
+    let getWire = function(idx) {
+      return (
+        <div className="form-group wire-buttons" key={idx}>
+          <div className="btn-toolbar">
+            <div className="btn-group">
+              {getButtons(idx)}
+            </div>
+          </div>
+        </div>
+      );
+    };
+    let getWires = function() {
+      let wires = [];
+      for (let i = 0; i < 6; i++) {
+        wires.push(getWire(i));
+      }
+      return wires;
+    };
+    let getResult = () => {
+      let result = this.props.result || "Invalid";
+      return (
+        <div className="form-group label-spacing">
+          <label>Result</label>
+          <p>{result}</p>
+        </div>
+      );
+    };
     return (
-      <p>WiresModule</p>
+      <div>
+        {getWires()}
+        {getResult()}
+        <ButtonItem selected={false} label="Start Over" action={Actions.clearWires} />
+      </div>
     );
   }
 });
@@ -896,130 +1129,3 @@ ReactDOM.render(
   <Page />,
   document.getElementById('content')
 );
-
-
-//╔══════════════════════════════════════════════════════════════════════════════╗
-//║                                   ACTIONS                                    ║
-//╚══════════════════════════════════════════════════════════════════════════════╝
-
-let Actions = {
-  changeModule: (id) => {
-    dispatcher.dispatch({
-      type: "moduleChanged",
-      data: {
-        id: id
-      }
-    });
-  },
-  moduleFilterChanged: (newFilterText) => {
-    dispatcher.dispatch({
-      type: "moduleFilterChanged",
-      data: {
-        newFilterText,
-      }
-    });
-  },
-  selectHighlightedModule: () => {
-    dispatcher.dispatch({
-      type: "selectHighlightedModule",
-    });
-  },
-  keyPressed: (e) => {
-    dispatcher.dispatch({
-      type: "keyPressed",
-      data: {
-        event: e
-      }
-    });
-  },
-  wordPressed: (word) => {
-    dispatcher.dispatch({
-      type: "wordPressed",
-      data: {
-        word: word
-      }
-    });
-  },
-  clearOnFirst: () => {
-    dispatcher.dispatch({
-      type: "clearOnFirst"
-    });
-  },
-  complicatedButtonClicked: (buttonLabel) => {
-    dispatcher.dispatch({
-      type: "complicatedButtonClicked",
-      data: {
-        buttonLabel: buttonLabel
-      }
-    });
-  },
-  bombInfoChanged: (questionType, buttonLabel) => {
-    dispatcher.dispatch({
-      type: "bombInfoChanged",
-      data: {
-        questionType: questionType,
-        buttonLabel: buttonLabel,
-      }
-    });
-  },
-  keypadButtonPressed: (label) => {
-    dispatcher.dispatch({
-      type: "keypadButtonPressed",
-      data: {
-        label: label
-      }
-    });
-  },
-  clearKeypad: () => {
-    dispatcher.dispatch({
-      type: "clearKeypad"
-    });
-  },
-  morseButtonPressed: (label) => {
-    dispatcher.dispatch({
-      type: "morseButtonPressed",
-      data: {
-        label: label
-      }
-    });
-  },
-  morseBackPressed: (label) => {
-    dispatcher.dispatch({
-      type: "morseBackPressed"
-    });
-  },
-  clearMorse: () => {
-    dispatcher.dispatch({
-      type: "clearMorse"
-    });
-  },
-  knobsButtonPressed: (row, col) => {
-    dispatcher.dispatch({
-      type: "knobsButtonPressed",
-      data: {
-        row: row,
-        col: col
-      }
-    });
-  },
-  clearKnobs: () => {
-    dispatcher.dispatch({
-      type: "clearKnobs"
-    });
-  },
-  passwordLettersChanged: (col, letters) => {
-    dispatcher.dispatch({
-      type: "passwordLettersChanged",
-      data: {
-        col: col,
-        letters: letters
-      }
-    });
-  },
-  clearPasswords: () => {
-    dispatcher.dispatch({
-      type: "clearPasswords"
-    });
-  }
-};
-
