@@ -12,6 +12,32 @@ let modules = [ "Wires", "Button", "Keypads", "Simon Says", "Who's on First",
 let symbols = [ "Ϙ", "Ѧ", "ƛ", "ϟ", "Ѭ", "ϗ", "Ͽ", "Ӟ", "Ҩ", "☆", "¿", "Ⓒ",
   "ὦ", "Ж", "Ԇ", "Ϭ", "¶", "ƀ", "ټ", "Ѱ", "Ͼ", "Ѯ", "★", "҂", "æ", "Ҋ", "Ω" ]; 
 
+let colors = [{ 
+  label: "X",
+  value: null,
+  btnType: "btn-default"
+}, { 
+  label: "Red",
+  value: 'r',
+  btnType: "btn-danger"
+}, { 
+  label: "White",
+  value: 'w',
+  btnType: "btn-default"
+}, { 
+  label: "Blue",
+  value: 'b',
+  btnType: "btn-primary"
+}, { 
+  label: "Yellow",
+  value: 'y',
+  btnType: "btn-warning"
+}, { 
+  label: "Black",
+  value: 'k',
+  btnType: "btn-black"
+}];
+
 
 //╔══════════════════════════════════════════════════════════════════════════════╗
 //║                                   ACTIONS                                    ║
@@ -149,7 +175,28 @@ let Actions = {
     dispatcher.dispatch({
       type: "clearWires"
     });
-  }
+  },
+  buttonColorChanged: (color) => {
+    dispatcher.dispatch({
+      type: "buttonColorChanged",
+      data: {
+        color: color
+      }
+    });
+  },
+  buttonWordChanged: (word) => {
+    dispatcher.dispatch({
+      type: "buttonWordChanged",
+      data: {
+        word: word
+      }
+    });
+  },
+  clearButton: () => {
+    dispatcher.dispatch({
+      type: "clearButton"
+    });
+  },
 };
 
 
@@ -315,6 +362,37 @@ let wiresStore = new Store(dispatcher, function(data, e) {
   }
 }, {wires: getDefaultWires(), result: null});
 
+let buttonStore = new Store(dispatcher, function(data, e) {
+  let getResult = function(data) {
+    if (data.color && data.word) {
+      data.numBatteries = -1;
+      if (bombInfoStore.data.b) {
+        data.numBatteries = bombInfoStore.data.b === '2' ? 2 : bombInfoStore.data.b === '>' ? 3 : 0;
+      }
+      data.frk = bombInfoStore.data.f === 'Yes' ? 'y' : bombInfoStore.data.f === 'No' ? 'n' : null;
+      data.result = manual.button.press(data.color, data.word, data.numBatteries, data.frk);
+    }
+    return data;
+  };
+  let buttonChanged = function(data, color, word) {
+    data.color = color || data.color;
+    data.word = word || data.word;
+    data = getResult(data);
+  };
+  switch (e.type) {
+    case "bombInfoChanged":
+    case "buttonColorChanged":
+    case "buttonWordChanged":
+      buttonChanged(data, e.data.color, e.data.word);
+      break;
+    case "clearButton":
+      data.color = null;
+      data.word = null;
+      data.result = null;
+      break;
+  }
+}, {color: null, word: null, result: null});
+
 let keypadStore = new Store(dispatcher, function(data, e) {
   switch (e.type) {
     case "keypadButtonPressed":
@@ -403,7 +481,8 @@ let Page = React.createClass({ getInitialState: function() {
       morseState: morseStore.data,
       knobsState: knobsStore.data,
       passwordsState: passwordsStore.data,
-      wiresState: wiresStore.data
+      wiresState: wiresStore.data,
+      buttonState: buttonStore.data
     };
   },
   moduleListStoreChanged: function() {
@@ -451,6 +530,11 @@ let Page = React.createClass({ getInitialState: function() {
       wiresState: wiresStore.data 
     }); 
   }, 
+  buttonStoreChanged: function() {
+    this.setState({
+      buttonState: buttonStore.data 
+    }); 
+  }, 
   componentWillMount: function() { 
     moduleListStore.subscribe(this.moduleListStoreChanged); 
     onFirstStore.subscribe(this.onFirstWordSelected); 
@@ -461,6 +545,7 @@ let Page = React.createClass({ getInitialState: function() {
     knobsStore.subscribe(this.knobsStoreChanged); 
     passwordsStore.subscribe(this.passwordsStoreChanged); 
     wiresStore.subscribe(this.wiresStoreChanged); 
+    buttonStore.subscribe(this.buttonStoreChanged); 
     document.addEventListener("keyup", (e) => { 
       Actions.keyPressed(e);
     });
@@ -475,7 +560,7 @@ let Page = React.createClass({ getInitialState: function() {
         case "Wires":
           return <WiresModule wires={this.state.wiresState.wires} result={this.state.wiresState.result} oddSerial={this.state.bombInfoState.s ? this.state.bombInfoState.s === "Odd" : null} />;
         case "Button":
-          return <ButtonModule />;
+          return <ButtonModule color={this.state.buttonState.color} word={this.state.buttonState.word} result={this.state.buttonState.result} numBatteries={this.state.buttonState.numBatteries} frk={this.state.buttonState.frk} />;
         case "Simon Says":
           return <SimonModule />;
         case "Who's on First":
@@ -648,34 +733,9 @@ let WiresModule = React.createClass({
     oddSerial: React.PropTypes.bool
   },
   render: function() {
-    let wireColors = [{ 
-      label: "X",
-      value: null,
-      btnType: "btn-default"
-    }, { 
-      label: "Red",
-      value: 'r',
-      btnType: "btn-danger"
-    }, { 
-      label: "White",
-      value: 'w',
-      btnType: "btn-default"
-    }, { 
-      label: "Blue",
-      value: 'b',
-      btnType: "btn-primary"
-    }, { 
-      label: "Yellow",
-      value: 'y',
-      btnType: "btn-warning"
-    }, { 
-      label: "Black",
-      value: 'k',
-      btnType: "btn-black"
-    }];
     let getButtons = (wireIdx) => {
       let wire = this.props.wires[wireIdx];
-      return wireColors.map((color, i) => {
+      return colors.map((color, i) => {
         let active = wire === color.value;
         let btnType = active ? color.btnType : "btn-default";
         return <SegmentedButtonItem key={i} active={active} label={color.label} btnType={btnType} callback={Actions.wireColorChanged.bind(this, color.value, wireIdx)} />
@@ -683,7 +743,7 @@ let WiresModule = React.createClass({
     };
     let getWire = function(idx) {
       return (
-        <div className="form-group wire-buttons" key={idx}>
+        <div className="form-group color-buttons" key={idx}>
           <div className="btn-toolbar">
             <div className="btn-group">
               {getButtons(idx)}
@@ -723,9 +783,89 @@ let WiresModule = React.createClass({
 });
 
 let ButtonModule = React.createClass({
+  propTypes: {
+    color: React.PropTypes.string,
+    word: React.PropTypes.string,
+    result: React.PropTypes.string,
+    numBatteries: React.PropTypes.number,
+    frk: React.PropTypes.string
+  },
   render: function() {
+    let buttonColors = ['w', 'b', 'r', 'y'];
+    let buttonWords = ["detonate", "abort", "hold"];
+    let results = { 'h': "Hold the button", 'i': "Press and release immediately" };
+    let getButtons = () => {
+      let color = this.props.color;
+      return colors.filter(c => buttonColors.includes(c.value)).map((c, i) => {
+        let active = color === c.value;
+        let btnType = active ? c.btnType : "btn-default";
+        return <SegmentedButtonItem key={i} active={active} label={c.label} btnType={btnType} callback={Actions.buttonColorChanged.bind(this, c.value)} />
+      });
+    };
+    let getButtonColors = function() {
+      return (
+        <div className="form-group color-buttons">
+          <div className="btn-toolbar">
+            <div className="btn-group">
+              {getButtons()}
+            </div>
+          </div>
+        </div>
+      );
+    };
+    let getWords = () => {
+      let word = this.props.word;
+      return buttonWords.map((w, i) => {
+        let active = this.props.word === w;
+        return <SegmentedButtonItem key={i} active={active} label={w} btnType="btn-default" callback={Actions.buttonWordChanged.bind(this, w)} />
+      });
+    };
+    let getWordList = function() {
+      return (
+        <div className="form-group color-buttons">
+          <div className="btn-toolbar">
+            <div className="btn-group">
+              {getWords()}
+            </div>
+          </div>
+        </div>
+      );
+    };
+    let getBombInfoModules = () => {
+      let modules = [];
+      if (this.props.numBatteries === -1) {
+        modules.push(<BombInfoModule key="1" questionType="b" />);
+      }
+      if (!this.props.frk) {
+        modules.push(<BombInfoModule key="2" questionType="f" />);
+      }
+      return modules;
+    };
+    let getResult = () => {
+      if (this.props.result == '?') {
+        return (
+          <div>
+            {getBombInfoModules()}
+          </div>
+        );
+      } else {
+        let result = results[this.props.result] || "Invalid";
+        return (
+          <div className="form-group label-spacing">
+            <label>Result</label>
+            <p>{result}</p>
+          </div>
+        );
+      }
+    };
     return (
-      <p>ButtonModule</p>
+      <div>
+        <h1>Button</h1>
+        {getButtonColors()}
+        {getWordList()}
+        {getResult()}
+        <ButtonItem selected={false} label="Start Over" action={Actions.clearButton} />
+      </div>
     );
   }
 });
@@ -868,7 +1008,7 @@ let MorseCodeModule = React.createClass({
 
 let SegmentedButtonItem = React.createClass({
   propTypes: {
-    active: React.PropTypes.bool.isRequired,
+    active: React.PropTypes.bool,
     disabled: React.PropTypes.bool,
     btnType: React.PropTypes.string,
     label: React.PropTypes.string.isRequired,
@@ -1074,7 +1214,8 @@ let BombInfoModule = React.createClass({
     let questions = {
       "p": "Does the bomb have a parallel port?", 
       "b": "How many batteries does the bomb have?", 
-      "s": "Is the last digit in the serial number even or odd?"
+      "s": "Is the last digit in the serial number even or odd?",
+      "f": "Is there a lit indicator with the letters 'FRK'?"
     };
     let getButtons = function(questionType, labelAndActivePairs) {
       return labelAndActivePairs.map((pair, i) => {
@@ -1096,6 +1237,11 @@ let BombInfoModule = React.createClass({
         case 's':
           labelAndActivePairs.push({'active': this.props.bombInfo && this.props.bombInfo.s === "Even", 'label': 'Even'});
           labelAndActivePairs.push({'active': this.props.bombInfo && this.props.bombInfo.s === "Odd", 'label': 'Odd'});
+          break;
+        case 'f':
+          console.log(this.props.bombInfo);
+          labelAndActivePairs.push({'active': this.props.bombInfo && this.props.bombInfo.f === "Yes", 'label': 'Yes'});
+          labelAndActivePairs.push({'active': this.props.bombInfo && this.props.bombInfo.f === "No", 'label': 'No'});
           break;
       }
       return (
