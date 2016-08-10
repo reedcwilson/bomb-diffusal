@@ -790,6 +790,7 @@ let WiresModule = React.createClass({
     };
     return (
       <div>
+        <h2>Wires</h2>
         {getWires()}
         {getResult()}
         <ButtonItem selected={false} label="Start Over" action={Actions.clearWires} />
@@ -907,7 +908,7 @@ let ButtonModule = React.createClass({
     };
     return (
       <div>
-        <h1>Button</h1>
+        <h2>Button</h2>
         {getButtonColors()}
         {getWordList()}
         {getResult()}
@@ -1035,6 +1036,7 @@ let MorseCodeModule = React.createClass({
     };
     return (
       <div>
+        <h2>Morse Code</h2>
         <div className="form-group">
           <div className="btn-toolbar">
             <div className="btn-group">
@@ -1122,6 +1124,7 @@ let ComplicatedWiresModule = React.createClass({
     }
     return (
       <div>
+        <h2>Complicated Wires</h2>
         <div className="form-group label-spacing">
           <label>LED</label>
         </div>
@@ -1191,6 +1194,7 @@ let PasswordsModule = React.createClass({
     };
     return (
       <div>
+        <h2>Passwords</h2>
         <div className="form-group label-spacing">
           <label>First Position</label>
         </div>
@@ -1245,6 +1249,7 @@ let KnobsModule = React.createClass({
     };
     return (
       <div className="knob-buttons">
+        <h2>Knobs</h2>
         {getButtonRow(0)}
         {getButtonRow(1)}
         {getPosition()}
@@ -1309,7 +1314,7 @@ let BombInfoModule = React.createClass({
     let getQuestions = () => {
       let uiElements = [];
       if (this.props.questionType == null) {
-        uiElements.push(<h3 key="0">Bomb Information</h3>);
+        uiElements.push(<h2 key="0">Bomb Information</h2>);
         Object.keys(questions).forEach((questionType, i) => {
           uiElements.push(buildQuestion(i+1, questionType));
         });
