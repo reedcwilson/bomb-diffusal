@@ -197,6 +197,14 @@ let Actions = {
       type: "clearButton"
     });
   },
+  holdIndicatorColorChanged: (color) => {
+    dispatcher.dispatch({
+      type: "holdIndicatorColorChanged",
+      data: {
+        color: color
+      }
+    });
+  },
 };
 
 
@@ -385,13 +393,21 @@ let buttonStore = new Store(dispatcher, function(data, e) {
     case "buttonWordChanged":
       buttonChanged(data, e.data.color, e.data.word);
       break;
+    case "holdIndicatorColorChanged":
+      data.holdColor = e.data.color;
+      if (e.data.color || e.data.color === null) {
+        data.holdResult = manual.button.hold(e.data.color);
+      }
+      break;
     case "clearButton":
-      data.color = null;
-      data.word = null;
-      data.result = null;
+      data.color = undefined;
+      data.word = undefined;
+      data.result = undefined;
+      data.holdColor = undefined;
+      data.holdResult = undefined;
       break;
   }
-}, {color: null, word: null, result: null});
+}, {color: undefined, word: undefined, result: undefined, holdColor: undefined, holdResult: undefined});
 
 let keypadStore = new Store(dispatcher, function(data, e) {
   switch (e.type) {
@@ -560,7 +576,7 @@ let Page = React.createClass({ getInitialState: function() {
         case "Wires":
           return <WiresModule wires={this.state.wiresState.wires} result={this.state.wiresState.result} oddSerial={this.state.bombInfoState.s ? this.state.bombInfoState.s === "Odd" : null} />;
         case "Button":
-          return <ButtonModule color={this.state.buttonState.color} word={this.state.buttonState.word} result={this.state.buttonState.result} numBatteries={this.state.buttonState.numBatteries} frk={this.state.buttonState.frk} />;
+          return <ButtonModule color={this.state.buttonState.color} word={this.state.buttonState.word} result={this.state.buttonState.result} numBatteries={this.state.buttonState.numBatteries} frk={this.state.buttonState.frk} holdColor={this.state.buttonState.holdColor} holdResult={this.state.buttonState.holdResult} />;
         case "Simon Says":
           return <SimonModule />;
         case "Who's on First":
@@ -787,13 +803,27 @@ let ButtonModule = React.createClass({
     color: React.PropTypes.string,
     word: React.PropTypes.string,
     result: React.PropTypes.string,
+    holdResult: React.PropTypes.number,
     numBatteries: React.PropTypes.number,
-    frk: React.PropTypes.string
+    frk: React.PropTypes.string,
+    holdColor: React.PropTypes.string
   },
   render: function() {
     let buttonColors = ['w', 'b', 'r', 'y'];
+    let holdColors = ['b', 'y', null]
     let buttonWords = ["detonate", "abort", "hold"];
     let results = { 'h': "Hold the button", 'i': "Press and release immediately" };
+    let getHoldButtons = () => {
+      if (this.props.result === 'h') {
+        let color = this.props.holdColor;
+        return colors.filter(c => holdColors.includes(c.value)).map((c, i) => {
+          let active = color === c.value;
+          let btnType = active ? c.btnType : "btn-default";
+          let label = c.label === 'X' ? 'Other' : c.label;
+          return <SegmentedButtonItem key={i} active={active} label={label} btnType={btnType} callback={Actions.holdIndicatorColorChanged.bind(this, c.value)} />
+        });
+      }
+    };
     let getButtons = () => {
       let color = this.props.color;
       return colors.filter(c => buttonColors.includes(c.value)).map((c, i) => {
@@ -813,12 +843,29 @@ let ButtonModule = React.createClass({
         </div>
       );
     };
+    let getHoldButtonColors = function() {
+      return (
+        <div className="form-group color-buttons">
+          <div className="btn-toolbar">
+            <div className="btn-group">
+              {getHoldButtons()}
+            </div>
+          </div>
+        </div>
+      );
+    };
     let getWords = () => {
       let word = this.props.word;
       return buttonWords.map((w, i) => {
         let active = this.props.word === w;
         return <SegmentedButtonItem key={i} active={active} label={w} btnType="btn-default" callback={Actions.buttonWordChanged.bind(this, w)} />
       });
+    };
+    let getHoldButtonResult = () => {
+      console.log(this.props.holdResult, this.props.result);
+      if (this.props.holdResult && this.props.result === 'h') {
+        return <p>Release when the countdown timer has a {this.props.holdResult} in any position</p>
+      }
     };
     let getWordList = function() {
       return (
@@ -864,6 +911,8 @@ let ButtonModule = React.createClass({
         {getButtonColors()}
         {getWordList()}
         {getResult()}
+        {getHoldButtonColors()}
+        {getHoldButtonResult()}
         <ButtonItem selected={false} label="Start Over" action={Actions.clearButton} />
       </div>
     );
