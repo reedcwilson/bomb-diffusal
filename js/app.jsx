@@ -205,6 +205,20 @@ let Actions = {
       }
     });
   },
+  memoryNumberChanged: (number, row) => {
+    dispatcher.dispatch({
+      type: "memoryNumberChanged",
+      data: {
+        number: number,
+        row: row
+      }
+    });
+  },
+  clearMemory: () => {
+    dispatcher.dispatch({
+      type: "clearMemory"
+    });
+  }
 };
 
 
@@ -432,6 +446,31 @@ let keypadStore = new Store(dispatcher, function(data, e) {
   }
 }, {keysPressed: [], answer: []});
 
+manual.memory.init();
+let buildMemoryButtonsArray = function() {
+  return [undefined, undefined, undefined, undefined, undefined];
+};
+let memoryStore = new Store(dispatcher, function(data, e) {
+  switch (e.type) {
+    case "memoryNumberChanged":
+      data.buttons[e.data.row] = e.data.number;
+      if (data.buttons.every(b => b !== undefined) || data.currentRound === 5 && data.buttons[0] !== undefined) {
+        data.answer = manual.memory.getNumber(...data.buttons);
+        data.buttons = buildMemoryButtonsArray();
+        if (data.currentRound < 5) {
+          data.currentRound++;
+        }
+      }
+      break;
+    case "clearMemory":
+      data.buttons = buildMemoryButtonsArray();
+      data.answer = undefined;
+      data.currentRound = 1;
+      manual.memory.init();
+      break;
+  }
+}, {buttons: buildMemoryButtonsArray(), answer: undefined, currentRound: 1});
+
 let moduleListStore = new Store(dispatcher, function(data, e) {
   let oldFilterText = data.filterText;
   switch (e.type) {
@@ -498,7 +537,8 @@ let Page = React.createClass({ getInitialState: function() {
       knobsState: knobsStore.data,
       passwordsState: passwordsStore.data,
       wiresState: wiresStore.data,
-      buttonState: buttonStore.data
+      buttonState: buttonStore.data,
+      memoryState: memoryStore.data
     };
   },
   moduleListStoreChanged: function() {
@@ -551,6 +591,11 @@ let Page = React.createClass({ getInitialState: function() {
       buttonState: buttonStore.data 
     }); 
   }, 
+  memoryStoreChanged: function() {
+    this.setState({
+      memoryState: memoryStore.data 
+    }); 
+  }, 
   componentWillMount: function() { 
     moduleListStore.subscribe(this.moduleListStoreChanged); 
     onFirstStore.subscribe(this.onFirstWordSelected); 
@@ -562,6 +607,7 @@ let Page = React.createClass({ getInitialState: function() {
     passwordsStore.subscribe(this.passwordsStoreChanged); 
     wiresStore.subscribe(this.wiresStoreChanged); 
     buttonStore.subscribe(this.buttonStoreChanged); 
+    memoryStore.subscribe(this.memoryStoreChanged); 
     document.addEventListener("keyup", (e) => { 
       Actions.keyPressed(e);
     });
@@ -582,7 +628,7 @@ let Page = React.createClass({ getInitialState: function() {
         case "Who's on First":
           return <OnFirstModule displayWord={this.state.onFirstState.displayWord} labelWord={this.state.onFirstState.labelWord} />;
         case "Memory":
-          return <MemoryModule />;
+          return <MemoryModule buttons={this.state.memoryState.buttons} answer={this.state.memoryState.answer} currentRound={this.state.memoryState.currentRound} />;
         case "Morse Code":
           return <MorseCodeModule string={this.state.morseState.string} options={this.state.morseState.options} />;
         case "Complicated Wires":
@@ -1005,9 +1051,68 @@ let OnFirstModule = React.createClass({
 });
 
 let MemoryModule = React.createClass({
+  propTypes: {
+    buttons: React.PropTypes.array.isRequired,
+    currentRound: React.PropTypes.number.isRequired,
+    answer: React.PropTypes.number
+  },
   render: function() {
+    let numbers = [ {
+      value: 0,
+      label: "Display"
+    },{
+      value: 1,
+      label: "Button 1"
+    },{
+      value: 2,
+      label: "Button 2"
+    },{
+      value: 3,
+      label: "Button 3"
+    },{
+      value: 4,
+      label: "Button 4"
+    }];
+    let getButtons = (row) => {
+      let number = this.props.selectedNumber;
+      let buttons = this.props.buttons;
+      return [1, 2, 3, 4].map((n, i) => {
+        let active = buttons[row] === n;
+        return <SegmentedButtonItem key={i} active={active} label={String(n)} btnType={"btn-default"} callback={Actions.memoryNumberChanged.bind(this, n, row)} />
+      });
+    };
+    let getButtonRow = function(row, key) {
+      return (
+        <div key={key} className="form-group color-buttons">
+          <div className="btn-toolbar">
+            <div className="btn-group">
+              {getButtons(row)}
+            </div>
+          </div>
+        </div>
+      );
+    };
+    let getButtonRows = () => {
+      let rows = [];
+      for (let i = 0; i < (this.props.currentRound < 5 ? numbers.length : 1); i++) {
+        rows.push(<h4 key={i*2}>{numbers[i].label}</h4>);
+        rows.push(getButtonRow(i, i*2+1));
+      }
+      return rows;
+    };
+    let getAnswer = () => {
+      if (this.props.answer && this.props.buttons.every(b => b === undefined)) {
+        return <p>Press {this.props.answer}</p>
+      }
+    };
     return (
-      <p>MemoryModule</p>
+      <div>
+        <h2>Memory</h2>
+        <h3>Round {this.props.currentRound}</h3>
+        {getButtonRows()}
+        {getAnswer()}
+        <button className="btn btn-primary" onClick={Actions.clearMemory}>Start Over</button>
+      </div>
     );
   }
 });
