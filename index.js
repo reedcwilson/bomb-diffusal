@@ -5,6 +5,7 @@ module.exports = {
   button: require('./lib/button'),
   keypad: require('./lib/keypad'),
   onFirst: require('./lib/on-first.js'),
+  simon: require('./lib/simon.js'),
   memory: require('./lib/memory'),
   morse: require('./lib/morse'),
   complicatedWires: require('./lib/complicated-wires'),
