@@ -218,6 +218,27 @@ let Actions = {
     dispatcher.dispatch({
       type: "clearMemory"
     });
+  },
+  wireSequenceColorChanged: (color) => {
+    dispatcher.dispatch({
+      type: "wireSequenceColorChanged",
+      data: {
+        color: color
+      }
+    });
+  },
+  wireSequenceLetterChanged: (letter) => {
+    dispatcher.dispatch({
+      type: "wireSequenceLetterChanged",
+      data: {
+        letter: letter
+      }
+    });
+  },
+  clearWireSequences: () => {
+    dispatcher.dispatch({
+      type: "clearWireSequences"
+    });
   }
 };
 
@@ -471,6 +492,42 @@ let memoryStore = new Store(dispatcher, function(data, e) {
   }
 }, {buttons: buildMemoryButtonsArray(), answer: undefined, currentRound: 1});
 
+manual.wireSequences.init();
+let wireSequencesStore = new Store(dispatcher, function(data, e) {
+  let reset = function() {
+    data.color = undefined
+    data.letter = undefined
+  };
+  switch (e.type) {
+    case "wireSequenceColorChanged":
+      data.color = e.data.color;
+      if (data.color && data.letter) {
+        data.answer = manual.wireSequences.shouldCut(data.color, data.letter.toLowerCase());
+        data.numWires++;
+        reset();
+      } else {
+        data.answer = undefined;
+      }
+      break;
+    case "wireSequenceLetterChanged":
+      data.letter = e.data.letter;
+      if (data.color && data.letter) {
+        data.answer = manual.wireSequences.shouldCut(data.color, data.letter.toLowerCase());
+        data.numWires++;
+        reset();
+      } else {
+        data.answer = undefined;
+      }
+      break;
+    case "clearWireSequences":
+      reset();
+      data.numWires = 0;
+      data.answer = undefined;
+      manual.wireSequences.init();
+      break;
+  }
+}, {color: undefined, letter: undefined, numWires: 0, answer: undefined});
+
 let moduleListStore = new Store(dispatcher, function(data, e) {
   let oldFilterText = data.filterText;
   switch (e.type) {
@@ -538,7 +595,8 @@ let Page = React.createClass({ getInitialState: function() {
       passwordsState: passwordsStore.data,
       wiresState: wiresStore.data,
       buttonState: buttonStore.data,
-      memoryState: memoryStore.data
+      memoryState: memoryStore.data,
+      wireSequencesState: wireSequencesStore.data
     };
   },
   moduleListStoreChanged: function() {
@@ -596,6 +654,11 @@ let Page = React.createClass({ getInitialState: function() {
       memoryState: memoryStore.data 
     }); 
   }, 
+  wireSequencesStoreChanged: function() {
+    this.setState({
+      wireSequencesState: wireSequencesStore.data 
+    }); 
+  }, 
   componentWillMount: function() { 
     moduleListStore.subscribe(this.moduleListStoreChanged); 
     onFirstStore.subscribe(this.onFirstWordSelected); 
@@ -608,6 +671,7 @@ let Page = React.createClass({ getInitialState: function() {
     wiresStore.subscribe(this.wiresStoreChanged); 
     buttonStore.subscribe(this.buttonStoreChanged); 
     memoryStore.subscribe(this.memoryStoreChanged); 
+    wireSequencesStore.subscribe(this.wireSequencesStoreChanged); 
     document.addEventListener("keyup", (e) => { 
       Actions.keyPressed(e);
     });
@@ -634,7 +698,7 @@ let Page = React.createClass({ getInitialState: function() {
         case "Complicated Wires":
           return <ComplicatedWiresModule led={this.state.complicatedWiresState.led} colors={this.state.complicatedWiresState.colors} star={this.state.complicatedWiresState.star} instruction={this.state.complicatedWiresState.instruction} bombInfo={this.state.bombInfoState} />;
         case "Wire Sequences":
-          return <WireSequencesModule />;
+          return <WireSequencesModule letter={this.state.wireSequencesState.letter} color={this.state.wireSequencesState.color} numWires={this.state.wireSequencesState.numWires} answer={this.state.wireSequencesState.answer} />;
         case "Passwords":
           return <PasswordsModule first={this.state.passwordsState.first} last={this.state.passwordsState.last} passwords={this.state.passwordsState.passwords} />;
         case "Knobs":
@@ -909,7 +973,6 @@ let ButtonModule = React.createClass({
       });
     };
     let getHoldButtonResult = () => {
-      console.log(this.props.holdResult, this.props.result);
       if (this.props.holdResult && this.props.result === 'h') {
         return <p>Release when the countdown timer has a {this.props.holdResult} in any position</p>
       }
@@ -1264,9 +1327,70 @@ let ComplicatedWiresModule = React.createClass({
 });
 
 let WireSequencesModule = React.createClass({
+  propTypes: {
+    color: React.PropTypes.string,
+    letter: React.PropTypes.string,
+    numWires: React.PropTypes.number.isRequired,
+    answer: React.PropTypes.bool
+  },
   render: function() {
+    let wireColors = ['r', 'b', 'k'];
+    let letters = ['A', 'B', 'C'];
+    let getLetters = () => {
+      let letter = this.props.letter;
+      return letters.map((c, i) => {
+        let active = letter === c;
+        return <SegmentedButtonItem key={i} active={active} label={c} btnType="btn-default" callback={Actions.wireSequenceLetterChanged.bind(this, c)} />
+      });
+    };
+    let getLettersRow = function() {
+      return (
+        <div className="form-group color-buttons">
+          <div className="btn-toolbar">
+            <div className="btn-group">
+              {getLetters()}
+            </div>
+          </div>
+        </div>
+      );
+    };
+    let getColors = () => {
+      let color = this.props.color;
+      return colors.filter(c => wireColors.includes(c.value)).map((c, i) => {
+        let active = color === c.value;
+        let btnType = active ? c.btnType : "btn-default";
+        return <SegmentedButtonItem key={i} active={active} label={c.label} btnType={btnType} callback={Actions.wireSequenceColorChanged.bind(this, c.value)} />
+      });
+    };
+    let getColorsRow = function() {
+      return (
+        <div className="form-group color-buttons">
+          <div className="btn-toolbar">
+            <div className="btn-group">
+              {getColors()}
+            </div>
+          </div>
+        </div>
+      );
+    };
+    let getNumWires = () => {
+      return <p>Number of wires: {this.props.numWires}</p>
+    };
+    let getAnswer = () => {
+      if (this.props.answer !== undefined) {
+        let instructions = { "true": "CUT IT!", "false": "DON'T CUT IT!" };
+        return <p>{instructions[String(this.props.answer)]}</p>;
+      }
+    };
     return (
-      <p>WireSequencesModule</p>
+      <div>
+        <h2>Wire Sequences</h2>
+        {getColorsRow()}
+        {getLettersRow()}
+        {getNumWires()}
+        {getAnswer()}
+        <ButtonItem selected={false} label="Start Over" action={Actions.clearWireSequences} />
+      </div>
     );
   }
 });
@@ -1398,7 +1522,6 @@ let BombInfoModule = React.createClass({
           labelAndActivePairs.push({'active': this.props.bombInfo && this.props.bombInfo.s === "Odd", 'label': 'Odd'});
           break;
         case 'f':
-          console.log(this.props.bombInfo);
           labelAndActivePairs.push({'active': this.props.bombInfo && this.props.bombInfo.f === "Yes", 'label': 'Yes'});
           labelAndActivePairs.push({'active': this.props.bombInfo && this.props.bombInfo.f === "No", 'label': 'No'});
           break;
