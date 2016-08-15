@@ -33,6 +33,10 @@ let colors = [{
   value: 'y',
   btnType: "btn-warning"
 }, { 
+  label: "Green",
+  value: 'g',
+  btnType: "btn-success"
+}, { 
   label: "Black",
   value: 'k',
   btnType: "btn-black"
@@ -238,6 +242,24 @@ let Actions = {
   clearWireSequences: () => {
     dispatcher.dispatch({
       type: "clearWireSequences"
+    });
+  },
+  simonColorSelected: (color) => {
+    dispatcher.dispatch({
+      type: "simonColorSelected",
+      data: {
+        color: color
+      }
+    });
+  },
+  simonBackPressed: (color) => {
+    dispatcher.dispatch({
+      type: "simonBackPressed"
+    });
+  },
+  clearSimon: () => {
+    dispatcher.dispatch({
+      type: "clearSimon"
     });
   }
 };
@@ -528,6 +550,26 @@ let wireSequencesStore = new Store(dispatcher, function(data, e) {
   }
 }, {color: undefined, letter: undefined, numWires: 0, answer: undefined});
 
+let simonStore = new Store(dispatcher, function(data, e) {
+  switch (e.type) {
+    case "simonColorSelected":
+      data.says.push(e.data.color);
+      let strikes = bombInfoStore.data.x === '0' ? 0 : bombInfoStore.data.x === '1' ? 1 : 2;
+      let hasVowel = bombInfoStore.data.v === 'Yes' ? true : false;
+      let newConverted = manual.simon.says(strikes, hasVowel, e.data.color);
+      data.convertedSays.push(newConverted);
+      break;
+    case "simonBackPressed":
+      data.says.pop();
+      data.convertedSays.pop();
+      break;
+    case "clearSimon":
+      data.says = [];
+      data.convertedSays = [];
+      break;
+  }
+}, {says: [], convertedSays: [], strikes: undefined, hasVowel: undefined});
+
 let moduleListStore = new Store(dispatcher, function(data, e) {
   let oldFilterText = data.filterText;
   switch (e.type) {
@@ -596,7 +638,8 @@ let Page = React.createClass({ getInitialState: function() {
       wiresState: wiresStore.data,
       buttonState: buttonStore.data,
       memoryState: memoryStore.data,
-      wireSequencesState: wireSequencesStore.data
+      wireSequencesState: wireSequencesStore.data,
+      simonState: simonStore.data
     };
   },
   moduleListStoreChanged: function() {
@@ -659,6 +702,11 @@ let Page = React.createClass({ getInitialState: function() {
       wireSequencesState: wireSequencesStore.data 
     }); 
   }, 
+  simonStoreChanged: function() {
+    this.setState({
+      simonState: simonStore.data 
+    }); 
+  }, 
   componentWillMount: function() { 
     moduleListStore.subscribe(this.moduleListStoreChanged); 
     onFirstStore.subscribe(this.onFirstWordSelected); 
@@ -672,6 +720,7 @@ let Page = React.createClass({ getInitialState: function() {
     buttonStore.subscribe(this.buttonStoreChanged); 
     memoryStore.subscribe(this.memoryStoreChanged); 
     wireSequencesStore.subscribe(this.wireSequencesStoreChanged); 
+    simonStore.subscribe(this.simonStoreChanged); 
     document.addEventListener("keyup", (e) => { 
       Actions.keyPressed(e);
     });
@@ -688,7 +737,7 @@ let Page = React.createClass({ getInitialState: function() {
         case "Button":
           return <ButtonModule color={this.state.buttonState.color} word={this.state.buttonState.word} result={this.state.buttonState.result} numBatteries={this.state.buttonState.numBatteries} frk={this.state.buttonState.frk} holdColor={this.state.buttonState.holdColor} holdResult={this.state.buttonState.holdResult} />;
         case "Simon Says":
-          return <SimonModule />;
+          return <SimonModule says={this.state.simonState.says} convertedSays={this.state.simonState.convertedSays} bombInfo={this.state.bombInfoState} />;
         case "Who's on First":
           return <OnFirstModule displayWord={this.state.onFirstState.displayWord} labelWord={this.state.onFirstState.labelWord} />;
         case "Memory":
@@ -1030,9 +1079,66 @@ let ButtonModule = React.createClass({
 });
 
 let SimonModule = React.createClass({
+  propTypes: {
+    says: React.PropTypes.array.isRequired,
+    convertedSays: React.PropTypes.array.isRequired,
+    bombInfo: React.PropTypes.object
+  },
   render: function() {
+    let simonColors = ['r', 'b', 'y', 'g'];
+    let getColors = function() {
+      return colors.filter(c => simonColors.includes(c.value)).map((c, i) => {
+        return <SegmentedButtonItem key={i} active={false} label={c.label} btnType={c.btnType} callback={Actions.simonColorSelected.bind(this, c.value)} />
+      });
+    };
+    let getColorsRow = () => {
+      if (this.props.bombInfo.v && this.props.bombInfo.x) {
+        return (
+          <div className="form-group color-buttons">
+            <div className="btn-toolbar">
+              <div className="btn-group">
+                {getColors()}
+              </div>
+              <div className="btn-group">
+                <SegmentedButtonItem active={false} label="backspace" btnType="btn-default" callback={Actions.simonBackPressed} />
+              </div>
+            </div>
+          </div>
+        )
+      }
+    };
+    let getColorName = function(value) {
+      return colors.find(c => c.value === value).label;
+    };
+    let getSimon = () => {
+      if (this.props.bombInfo.v && this.props.bombInfo.x && this.props.says.length > 0) {
+        let colorNames = this.props.says.map(getColorName);
+        return (<p>{colorNames.join(', ')}</p>);
+      }
+    };
+    let getConvertedSimon = () => {
+      if (this.props.bombInfo.v && this.props.bombInfo.x && this.props.says.length > 0) {
+        let colorNames = this.props.convertedSays.map(getColorName);
+        return (<p>{colorNames.join(', ')}</p>);
+      }
+    };
+    let getBombInfoModules = () => {
+      let modules = [];
+      modules.push(<BombInfoModule key="1" bombInfo={this.props.bombInfo} questionType="x" />);
+      if (!this.props.bombInfo.v) {
+        modules.push(<BombInfoModule key="2" questionType="v" />);
+      }
+      return modules;
+    };
     return (
-      <p>SimonModule</p>
+      <div>
+        <h2>Simon Says</h2>
+        {getBombInfoModules()}
+        {getColorsRow()}
+        {getSimon()}
+        {getConvertedSimon()}
+        <ButtonItem selected={false} label="Start Over" action={Actions.clearSimon} />
+      </div>
     );
   }
 });
@@ -1498,7 +1604,9 @@ let BombInfoModule = React.createClass({
       "p": "Does the bomb have a parallel port?", 
       "b": "How many batteries does the bomb have?", 
       "s": "Is the last digit in the serial number even or odd?",
-      "f": "Is there a lit indicator with the letters 'FRK'?"
+      "f": "Is there a lit indicator with the letters 'FRK'?",
+      "v": "Does the serial number contain a vowel?",
+      "x": "How many strikes does the bomb have?"
     };
     let getButtons = function(questionType, labelAndActivePairs) {
       return labelAndActivePairs.map((pair, i) => {
@@ -1524,6 +1632,15 @@ let BombInfoModule = React.createClass({
         case 'f':
           labelAndActivePairs.push({'active': this.props.bombInfo && this.props.bombInfo.f === "Yes", 'label': 'Yes'});
           labelAndActivePairs.push({'active': this.props.bombInfo && this.props.bombInfo.f === "No", 'label': 'No'});
+          break;
+        case 'v':
+          labelAndActivePairs.push({'active': this.props.bombInfo && this.props.bombInfo.v === "Yes", 'label': 'Yes'});
+          labelAndActivePairs.push({'active': this.props.bombInfo && this.props.bombInfo.v === "No", 'label': 'No'});
+          break;
+        case 'x':
+          labelAndActivePairs.push({'active': this.props.bombInfo && this.props.bombInfo.x === "0", 'label': '0'});
+          labelAndActivePairs.push({'active': this.props.bombInfo && this.props.bombInfo.x === "1", 'label': '1'});
+          labelAndActivePairs.push({'active': this.props.bombInfo && this.props.bombInfo.x === "2", 'label': '2'});
           break;
       }
       return (
