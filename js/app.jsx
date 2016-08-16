@@ -261,6 +261,20 @@ let Actions = {
     dispatcher.dispatch({
       type: "clearSimon"
     });
+  },
+  cellSelected: (x, y) => {
+    dispatcher.dispatch({
+      type: "cellSelected",
+      data: {
+        x: x,
+        y: y
+      }
+    });
+  },
+  clearMaze: () => {
+    dispatcher.dispatch({
+      type: "clearMaze"
+    });
   }
 };
 
@@ -550,6 +564,50 @@ let wireSequencesStore = new Store(dispatcher, function(data, e) {
   }
 }, {color: undefined, letter: undefined, numWires: 0, answer: undefined});
 
+let augmentMazePath = function(coord, i, arr) {
+  if (i+1 >= arr.length) {
+    return coord
+  }
+  let next = arr[i+1];
+  let direction;
+  if (next[0] > coord[0]) {
+    direction = "&rarr;";
+  } else if (next[0] < coord[0]) {
+    direction = "&larr;";
+  } else if (next[1] > coord[1]) {
+    direction = "&darr;";
+  } else if (next[1] < coord[1]) {
+    direction = "&uarr;";
+  }
+  coord.push(direction);
+  return coord;
+};
+let inc = function(coord) {
+  return coord.map(c => c+1);
+};
+let mazeStore = new Store(dispatcher, function(data, e) {
+  switch (e.type) {
+    case "cellSelected":
+      if (data.circle.length === 0) {
+        data.circle = [e.data.x, e.data.y];
+      } else if (data.start.length === 0) {
+        data.start = [e.data.x, e.data.y];
+      } else if (data.end.length === 0) {
+        data.end = [e.data.x, e.data.y];
+        console.log(inc(data.circle));
+        let path = manual.maze.getPath(inc(data.circle), inc(data.start), inc(data.end));
+        data.path = path.map(augmentMazePath);
+      }
+      break;
+    case "clearMaze":
+      data.circle = [];
+      data.start = []; 
+      data.end= [];
+      data.path = undefined;
+      break;
+  }
+}, {circle: [], start: [], end: [], path: undefined});
+
 let simonStore = new Store(dispatcher, function(data, e) {
   switch (e.type) {
     case "simonColorSelected":
@@ -639,7 +697,8 @@ let Page = React.createClass({ getInitialState: function() {
       buttonState: buttonStore.data,
       memoryState: memoryStore.data,
       wireSequencesState: wireSequencesStore.data,
-      simonState: simonStore.data
+      simonState: simonStore.data,
+      mazeState: mazeStore.data
     };
   },
   moduleListStoreChanged: function() {
@@ -707,6 +766,11 @@ let Page = React.createClass({ getInitialState: function() {
       simonState: simonStore.data 
     }); 
   }, 
+  mazeStoreChanged: function() {
+    this.setState({
+      mazeState: mazeStore.data 
+    }); 
+  }, 
   componentWillMount: function() { 
     moduleListStore.subscribe(this.moduleListStoreChanged); 
     onFirstStore.subscribe(this.onFirstWordSelected); 
@@ -721,6 +785,7 @@ let Page = React.createClass({ getInitialState: function() {
     memoryStore.subscribe(this.memoryStoreChanged); 
     wireSequencesStore.subscribe(this.wireSequencesStoreChanged); 
     simonStore.subscribe(this.simonStoreChanged); 
+    mazeStore.subscribe(this.mazeStoreChanged); 
     document.addEventListener("keyup", (e) => { 
       Actions.keyPressed(e);
     });
@@ -729,7 +794,7 @@ let Page = React.createClass({ getInitialState: function() {
     let getModule = (name) => {
       switch (name) {
         case "Mazes":
-          return <MazeModule />;
+          return <MazeModule circle={this.state.mazeState.circle} start={this.state.mazeState.start} end={this.state.mazeState.end} path={this.state.mazeState.path} />;
         case "Keypads":
           return <KeypadModule keysPressed={this.state.keypadState.keysPressed} answer={this.state.keypadState.answer} />;
         case "Wires":
@@ -844,20 +909,71 @@ let ModuleList = React.createClass({
 });
 
 let MazeModule = React.createClass({
+  propTypes: {
+    circle: React.PropTypes.array.isRequired,
+    start: React.PropTypes.array.isRequired,
+    end: React.PropTypes.array.isRequired,
+    path: React.PropTypes.array
+  },
   render: function() {
+    let coordInPath = function(coord, path) {
+      return path.findIndex(c => c[0] === coord[0] && c[1] === coord[1]) !== -1;
+    };
+    let createArrowMarkup = function(arrow) {
+      return {
+        __html: arrow
+      };
+    };
+    let getCell = (rowIdx, colIdx) => {
+      let mazeDivClass;
+      if (this.props.circle[0] === colIdx && this.props.circle[1] === rowIdx) {
+        mazeDivClass = 'maze-circle';
+      }
+      let mazePathClass;
+      if (this.props.path && coordInPath([colIdx, rowIdx], this.props.path)) {
+        mazePathClass = 'maze-path';
+      }
+      let direction;
+      if (this.props.path) {
+        let coord = this.props.path.find(c => c[0] === colIdx && c[1] === rowIdx);
+        direction = coord && coord.length === 3 ? coord[2] : "";
+        mazeDivClass = mazeDivClass + " " + "arrow-text";
+      }
+      return <td key={colIdx} className={mazePathClass} onClick={Actions.cellSelected.bind(this, colIdx, rowIdx)}><div className={mazeDivClass} dangerouslySetInnerHTML={createArrowMarkup(direction)}></div></td>
+    };
+    let getCells = function(rowIdx) {
+      let cells = [];
+      for (let i = 0; i < 6; i++) {
+        cells.push(getCell(rowIdx, i));
+      }
+      return cells;
+    };
+    let getRow = function(rowIdx) {
+      return (
+        <tr key={rowIdx}>{getCells(rowIdx)}</tr>
+      )
+    };
+    let getRows = () => {
+      let rows = [];
+      for (let i = 0; i < 6; i++) {
+        rows.push(getRow(i));
+      }
+      return rows;
+    };
+    let getMaze = function() {
+      return (
+        <table className="maze">
+          <tbody>
+            {getRows()}
+          </tbody>
+        </table>
+      )
+    };
     return (
       <div>
         <h2>Mazes</h2>
-        <table className="maze">
-          <tbody>
-            <tr><td className="maze-path"></td><td className="maze-path"></td><td className="maze-path"></td><td></td><td></td><td></td></tr>
-            <tr><td className="maze-path"><div className="maze-circle"></div></td><td></td><td className="maze-path"></td><td></td><td></td><td></td></tr>
-            <tr><td className="maze-path"></td><td></td><td></td><td></td><td></td><td><div className="maze-circle"></div></td></tr>
-            <tr><td className="maze-path"></td><td></td><td></td><td></td><td></td><td></td></tr>
-            <tr><td></td><td></td><td></td><td></td><td></td><td></td></tr>
-            <tr><td></td><td></td><td></td><td></td><td></td><td></td></tr>
-          </tbody>
-        </table>
+        {getMaze()}
+        <ButtonItem selected={false} label="Start Over" action={Actions.clearMaze} />
       </div>
     );
   }

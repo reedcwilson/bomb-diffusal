@@ -48,6 +48,10 @@ h1 {
 .maze-path {
   background-color: #5cb85c;
 }
+.arrow-text {
+  font-size: 50px;
+  text-align: center;
+}
 
 .label-spacing {
   margin-bottom: 2px;
