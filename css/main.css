@@ -46,6 +46,12 @@ h1 {
   width: 55px;
 }
 .maze-path {
+  background-color: #337ab7;
+}
+.maze-path-start {
+  background-color: #5cb85c;
+}
+.maze-path-end {
   background-color: #5cb85c;
 }
 .arrow-text {

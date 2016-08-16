@@ -931,7 +931,13 @@ let MazeModule = React.createClass({
       }
       let mazePathClass;
       if (this.props.path && coordInPath([colIdx, rowIdx], this.props.path)) {
-        mazePathClass = 'maze-path';
+        if (colIdx === this.props.start[0] && rowIdx === this.props.start[1]) {
+          mazePathClass = 'maze-path-start';
+        } else if (colIdx === this.props.end[0] && rowIdx === this.props.end[1]) {
+          mazePathClass = 'maze-path-end';
+        } else {
+          mazePathClass = 'maze-path';
+        }
       }
       let direction;
       if (this.props.path) {
@@ -969,9 +975,19 @@ let MazeModule = React.createClass({
         </table>
       )
     };
+    let getInstruction = () => {
+      if (this.props.circle.length === 0) {
+        return "Select one of the cells with a circle";
+      } else if (this.props.start.length === 0) {
+        return "Select the start cell";
+      } else if (this.props.end.length === 0) {
+        return "Select the end cell";
+      }
+    };
     return (
       <div>
         <h2>Mazes</h2>
+        <h3>{getInstruction()}</h3>
         {getMaze()}
         <ButtonItem selected={false} label="Start Over" action={Actions.clearMaze} />
       </div>
