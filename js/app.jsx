@@ -1103,7 +1103,7 @@ let ButtonModule = React.createClass({
   render: function() {
     let buttonColors = ['w', 'b', 'r', 'y'];
     let holdColors = ['b', 'y', null]
-    let buttonWords = ["detonate", "abort", "hold"];
+    let buttonWords = ["detonate", "abort", "hold", "other"];
     let results = { 'h': "Hold the button", 'i': "Press and release immediately" };
     let getHoldButtons = () => {
       if (this.props.result === 'h') {
